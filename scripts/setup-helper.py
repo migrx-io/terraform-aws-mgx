@@ -233,11 +233,14 @@ def generate_cache_yaml():
     # Add to values
     values["node_ips"] = "[" + ", ".join(f'"{entry}"' for entry in node_entries) + "]"
     values["s3_buckets"] = values["s3_bucket_names"]
+    # Storage bucket: use the first configured storage bucket.
+    storage_buckets = values.get("s3_bucket_names") or []
+    values["s3_bucket"] = storage_buckets[0]
     # Snapshot dst_bucket: use the dedicated backup bucket when configured,
     # otherwise fall back to the storage bucket.
     backup_buckets = values.get("s3_backup_bucket_names") or []
     values["s3_backup_bucket"] = (
-        backup_buckets[0] if backup_buckets else values["s3_buckets"][0]
+        backup_buckets[0] if backup_buckets else values["s3_bucket"]
     )
 
     # Format template
@@ -245,7 +248,7 @@ def generate_cache_yaml():
 
     # generate default config for volumes
     rendered_s = template_s.format(**{
-        "s3_bucket_name": values["s3_buckets"][0],
+        "s3_bucket_name": values["s3_bucket"],
         "s3_backup_bucket": values["s3_backup_bucket"],
     })
 

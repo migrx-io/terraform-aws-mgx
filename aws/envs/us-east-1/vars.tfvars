@@ -27,11 +27,29 @@ mgmt_pool = {
 }
 
 #
-# How to calculate ther rw/r cache size
-# Avaliable (Disk size in GiB * 1024) * 0.93 (7% for metadata)
-# RW cache = Avaliable * 0.05 
-# R cache = (Avaliable) - RW cache * Number of nodes
-# 
+# Cache sizing: r_cache_size_in_mib (read cache) and rw_cache_size_in_mib (write
+# cache) are PER-DISK sizes. How they map to physical capacity depends on raid_level.
+#
+# NVMe cache (raid_level = 1 or 10):
+#   Each NVMe disk is its own SPDK lvstore. Write data is REPLICATED across peers,
+#   so per disk the cache plugin carves ONE read lvol (r_cache_size_in_mib) plus
+#   ONE write lvol PER PEER (rw_cache_size_in_mib x number_of_peers). The peer
+#   count equals nodes_count, so the write cache footprint on each disk is
+#   rw_cache_size_in_mib * nodes_count -- it must be split across that many peers.
+#   Size against a SINGLE NVMe disk:
+#     available     = disk_GiB * 1024 * 0.93           # ~7% reserved for metadata
+#     rw_cache_size = available * 0.05
+#     r_cache_size  = available - rw_cache_size * nodes_count   # nodes_count = peers
+#
+# EBS cache (raid_level = 0):
+#   All per-node EBS volumes (ebs_volumes) are striped into ONE mdadm RAID0 and
+#   formatted as a single filesystem; the read and write caches SHARE it (the read
+#   cache is a bind mount of an .rcache subdir), so the write cache is NOT
+#   multiplied by nodes_count. nvme_node_disks_count must equal the total
+#   ebs_volumes count. Size against a SINGLE EBS volume (read + write share it):
+#     available = ebs_volume_GiB * 1024 * 0.93
+#     rw_cache_size + r_cache_size <= available        # e.g. rw ~10%, r ~90%
+#
 
 storage_pools = {
   pool1 = {
