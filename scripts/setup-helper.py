@@ -20,6 +20,9 @@ MANIFEST_FILE_S = "./storage.yaml"
 GEN_MANIFEST_FILE_S = "./gen_stotage.yaml"
 POOL_INFO_FILE= "../pool_info.json"
 MANIFEST_FILE_SRV = "./systemd.yaml"
+MANIFEST_FILE_MGMT = "./mgmt.yaml"
+MANIFEST_FILE_MGMT_POOL = "./mgmt-pool.yaml"
+GEN_MANIFEST_FILE_MGMT = "./gen_mgmt.yaml"
 
 # Collect all IPv4 addresses from all interfaces
 def get_all_ips():
@@ -198,6 +201,37 @@ def is_grafana_enabled():
 
     return d.get("config", {}).get("enable_grafana")
 
+
+def prometheus_federate():
+    """Emit Prometheus federation scrape jobs (one per downstream storage pool)
+    for the mgmt node. Each pool node's prometheus already scrapes the whole
+    pool, so the pools are full replicas - federate from a single node per pool
+    (the first) to pull all of its series via /federate without duplicates."""
+
+    with open(POOL_INFO_FILE, "r") as f:
+        d = json.load(f)
+
+    blocks = []
+    for name, pool in (d.get("pools") or {}).items():
+        node_ips = pool.get("node_ips") or []
+        if not node_ips:
+            continue
+
+        target = "{}:9090".format(node_ips[0])
+        blocks.append("""
+  - job_name: 'federate-{name}'
+    honor_labels: true
+    metrics_path: '/federate'
+    params:
+      'match[]':
+        - '{{job=~".+"}}'
+    static_configs:
+      - targets: ['{target}']
+        labels:
+          pool: '{name}'""".format(name=name, target=target))
+
+    print("\n".join(blocks))
+
 def generate_cache_yaml():
 
     # Load pool info JSON
@@ -260,12 +294,188 @@ def generate_cache_yaml():
         f.write(rendered_s)
 
 
+def generate_mgmt_yaml():
+
+    # Load pool info JSON
+    with open(POOL_INFO_FILE, "r") as f:
+        d = json.load(f)
+
+    cfg = d.get("config", {})
+
+    # Header: aaa namespace + mgmt behavior config (default)
+    with open(MANIFEST_FILE_MGMT, "r") as f:
+        header = f.read().format(
+            pull_http_timeout=cfg.get("pull_http_timeout", 30),
+            push_http_timeout=cfg.get("push_http_timeout", 30),
+        )
+
+    # One pool_add block per downstream storage pool
+    with open(MANIFEST_FILE_MGMT_POOL, "r") as f:
+        pool_tmpl = f.read()
+
+    docs = [header]
+    for name, pool in (d.get("pools") or {}).items():
+        # node_ips are seed API addresses of the pool's nodes (plain IPs;
+        # the mgmt plugin reaches them on MGX_PORT). Render as a YAML list.
+        node_ips = "[" + ", ".join(
+            f'"{ip}"' for ip in (pool.get("node_ips") or [])
+        ) + "]"
+        docs.append(pool_tmpl.format(
+            name=name,
+            node_ips=node_ips,
+            descr=pool.get("descr") or "",
+            labels=pool.get("labels") or "",
+        ))
+
+    with open(GEN_MANIFEST_FILE_MGMT, "w") as f:
+        f.write("\n---\n".join(docs))
+
+
+def _gw_session():
+    """Authenticate against the local gateway and return (session, host,
+    auth_headers)."""
+
+    merged_env = read_env_file(MERGED_ENV_FILE)
+
+    host = "http://{}:{}".format(merged_env["CASS_RPC_ADDR"], merged_env["MGX_GW_PORT"])
+    password = merged_env["MGX_GW_ADMIN_PASSWD"]
+
+    session = requests.Session()
+    headers = {"accept": "application/json", "Content-Type": "application/json"}
+
+    resp = session.post(f"{host}/api/v1/auth", headers=headers, json={
+        "cluster": "main",
+        "ns": "main",
+        "username": "admin",
+        "password": password,
+    })
+    if resp.status_code != 200:
+        print(f"❌ Auth failed! Status code: {resp.status_code}")
+        raise Exception(resp.text)
+
+    access_token = resp.json().get("access_token")
+    if not access_token:
+        print("❌ Failed to extract access_token")
+        raise Exception("No found token")
+
+    auth_headers = {"accept": "application/json", "Authorization": f"JWT {access_token}"}
+    return session, host, auth_headers
+
+
+def _ensure_cluster(session, host, auth_headers, nodes_count):
+    """Create the main cluster if needed and join free nodes until the cluster
+    holds nodes_count members. Raises 'Not ready' until it does."""
+
+    # Get cluster list
+    resp = session.get(f"{host}/api/v1/cluster", headers=auth_headers)
+    if resp.status_code not in (200, 201):
+        raise Exception(resp.text)
+
+    if len(resp.json()) == 0:
+        # Create cluster if not exist
+        resp = session.post(f"{host}/api/v1/cluster/main", headers=auth_headers,
+                            json={"node_ids": ["*"], "vip": "127.0.0.1"})
+        if resp.status_code in (200, 201):
+            print(f"✅ Cluster create success! Status code: {resp.status_code}")
+        else:
+            raise Exception(resp.text)
+
+    # Get cluster nodes
+    resp = session.get(f"{host}/api/v1/cluster/main/nodes", headers=auth_headers)
+    if resp.status_code not in (200, 201):
+        raise Exception(resp.text)
+
+    if len(resp.json()) != nodes_count:
+        print("❌ Not enough nodes in main cluster {} != {}".format(
+            len(resp.json()), nodes_count))
+
+        # Add free nodes to the cluster
+        free_nodes = session.get(f"{host}/api/v1/cluster/freenodes",
+                                 headers=auth_headers).json()
+        for fn in free_nodes:
+            r = session.post(f"{host}/api/v1/cluster/main/nodes/{fn['uid']}",
+                            headers=auth_headers, json={})
+            if r.status_code in (200, 201):
+                print(f"✅ Added nodes success! Status code: {r.status_code}")
+
+        raise Exception("Not ready")
+
+
+def _apply_manifest(session, host, auth_headers, path, skip_first=False):
+    """PUT a YAML manifest to the cluster plugins endpoint and verify every
+    document was applied (created or already present). Raises 'Not ready'
+    otherwise so the caller can retry."""
+
+    plugins_url = f"{host}/api/v1/cluster/main/plugins"
+
+    with open(path, "rb") as f:
+        files = {"file": (os.path.basename(path), f, "application/x-yaml")}
+        resp = session.put(plugins_url, headers=auth_headers, files=files)
+    if resp.status_code in (200, 201):
+        print(f"✅ YAML apply success! Status code: {resp.status_code}")
+
+    try:
+        print(json.dumps(resp.json(), indent=2))
+
+        # skip_first drops the namespace doc result (created, not "already exists")
+        rows = resp.json()[1:] if skip_first else resp.json()
+        for r in rows:
+            if r["text"] != "Object already exists":
+                raise Exception("Not ready")
+
+    except Exception:
+        print(resp.text)
+        raise Exception("Not ready")
+
+
+def mgx_mgmt_cluster_wait():
+
+    while True:
+        try:
+            mgx_mgmt_cluster()
+            return
+
+        except Exception as e:
+            print(f"mgx-mgmt-cluster failed: {e}")
+            time.sleep(5)
+
+
+def mgx_mgmt_cluster():
+
+    # run only on first node
+    if not is_first_node():
+        return
+
+    # Load pool info JSON
+    with open(POOL_INFO_FILE, "r") as f:
+        pool_info = json.load(f)
+
+    nodes_count = pool_info.get("config", {}).get("nodes_count")
+
+    session, host, auth_headers = _gw_session()
+
+    # Form the mgmt cluster (mgx-core nodes)
+    _ensure_cluster(session, host, auth_headers, nodes_count)
+
+    # Apply the mgmt manifest: behavior config + downstream pool registry
+    generate_mgmt_yaml()
+    _apply_manifest(session, host, auth_headers, GEN_MANIFEST_FILE_MGMT,
+                    skip_first=True)
+
+    # if enable_grafana is False then return
+    if is_grafana_enabled() is not True:
+        return
+
+    # put systemd manifest (grafana VIP service)
+    _apply_manifest(session, host, auth_headers, MANIFEST_FILE_SRV)
+
+
 def mgx_cluster_wait():
 
     while True:
         try:
             mgx_cluster()
-            return 
+            return
 
         except Exception as e:
             print(f"mgx-cluster failed: {e}")
@@ -278,154 +488,29 @@ def mgx_cluster():
     if not is_first_node():
         return
 
-    merged_env = read_env_file(MERGED_ENV_FILE)
-
-    pool_info = {}
     # Load pool info JSON
     with open(POOL_INFO_FILE, "r") as f:
         pool_info = json.load(f)
 
-    host = "http://{}:{}".format(merged_env["CASS_RPC_ADDR"], merged_env["MGX_GW_PORT"])
-    username = "admin"
-    password = merged_env["MGX_GW_ADMIN_PASSWD"]
+    nodes_count = pool_info.get("config", {}).get("nodes_count")
 
-    session = requests.Session()
-    headers = {"accept": "application/json", "Content-Type": "application/json"}
+    session, host, auth_headers = _gw_session()
 
-    # Step 1: Authenticate
-    auth_url = f"{host}/api/v1/auth"
-    auth_data = {
-        "cluster": "main",
-        "ns": "main",
-        "username": username,
-        "password": password,
-    }
+    # Form the storage cluster (mgx-core nodes)
+    _ensure_cluster(session, host, auth_headers, nodes_count)
 
-    resp = session.post(auth_url, headers=headers, json=auth_data)
-    if resp.status_code != 200:
-        print(f"❌ Auth failed! Status code: {resp.status_code}")
-        raise Exception(resp.text)
-
-    access_token = resp.json().get("access_token")
-    if not access_token:
-        print("❌ Failed to extract access_token")
-        raise Exception("No found token")
-
-    auth_headers = {"accept": "application/json", "Authorization": f"JWT {access_token}"}
-
-    # Step 2: Get cluster list
-    nodes_url = f"{host}/api/v1/cluster"
-    resp = session.get(nodes_url, headers=auth_headers)
-    if resp.status_code in (200, 201):
-        print(f"✅ Get nodes success! Status code: {resp.status_code}")
-    else:
-        raise Exception(resp.text)
-
-    if len(resp.json()) == 0:
-
-        # Create cluster if not exist
-        cluster_url = f"{host}/api/v1/cluster/main"
-        cluster_data = {"node_ids": ["*"], "vip": "127.0.0.1"}
-        resp = session.post(cluster_url, headers=auth_headers, json=cluster_data)
-        if resp.status_code in (200, 201):
-            print(f"✅ Cluster create success! Status code: {resp.status_code}")
-        else:
-            raise Exception(resp.text)
-
-    # Step 3: Get cluster nodes
-    nodes_url = f"{host}/api/v1/cluster/main/nodes"
-    resp = session.get(nodes_url, headers=auth_headers)
-    if resp.status_code in (200, 201):
-        print(f"✅ Get nodes success! Status code: {resp.status_code}")
-    else:
-        raise Exception(resp.text)
-
-    # check if nodes is connected
-    if len(resp.json()) != pool_info.get("config", {}).get("nodes_count"):
-        print("❌ Not enough nodes in main cluster {} != {}".format(len(resp.json()), 
-                                                                    pool_info.get("config", {}).get("nodes_count")))
-
-        # Get freenodes list
-        nodes_url = f"{host}/api/v1/cluster/freenodes"
-        resp = session.get(nodes_url, headers=auth_headers)
-        free_nodes = resp.json()
-
-        for fn in free_nodes:
-            nodes_url = f"{host}/api/v1/cluster/main/nodes/{fn['uid']}"
-            resp = session.post(nodes_url, headers=auth_headers, json={})
-            if resp.status_code in (200, 201):
-                print(f"✅ Added nodes success! Status code: {resp.status_code}")
-
-        raise Exception("Not ready")
-
-    # Step 4: Apply YAML
-    # generate file
+    # Apply manifests: cache config/pool first (skip_first drops the namespace
+    # doc result), then the storage/scheduler/snapshot config.
     generate_cache_yaml()
-
-    plugins_url = f"{host}/api/v1/cluster/main/plugins"
-
-    with open(GEN_MANIFEST_FILE, "rb") as f:
-        files = {"file": (os.path.basename(GEN_MANIFEST_FILE), f, "application/x-yaml")}
-        resp = session.put(plugins_url, headers=auth_headers, files=files)
-    if resp.status_code in (200, 201):
-        print(f"✅ YAML apply success! Status code: {resp.status_code}")
-
-    try:
-        print(json.dumps(resp.json(), indent=2))
-
-        # check if resource applied
-        # chekc namespace only
-        for r in resp.json()[1:]:
-            if r["text"] != "Object already exists":
-                raise Exception("Not ready")
-
-
-    except Exception:
-        print(resp.text)
-        raise Exception("Not ready")
-
-    # put storage manifest
-    with open(GEN_MANIFEST_FILE_S, "rb") as f:
-        files = {"file": (os.path.basename(GEN_MANIFEST_FILE_S), f, "application/x-yaml")}
-        resp = session.put(plugins_url, headers=auth_headers, files=files)
-    if resp.status_code in (200, 201):
-        print(f"✅ YAML apply success! Status code: {resp.status_code}")
-
-    try:
-        print(json.dumps(resp.json(), indent=2))
-
-        # check if resource applied
-        for r in resp.json():
-            if r["text"] != "Object already exists":
-                raise Exception("Not ready")
-
-    except Exception:
-        print(resp.text)
-        raise Exception("Not ready")
-
+    _apply_manifest(session, host, auth_headers, GEN_MANIFEST_FILE, skip_first=True)
+    _apply_manifest(session, host, auth_headers, GEN_MANIFEST_FILE_S)
 
     # if enable_grafana is False then return
     if is_grafana_enabled() is not True:
         return
 
-    # put systemd manifest
-    with open(MANIFEST_FILE_SRV, "rb") as f:
-        files = {"file": (os.path.basename(MANIFEST_FILE_SRV), f, "application/x-yaml")}
-        resp = session.put(plugins_url, headers=auth_headers, files=files)
-    if resp.status_code in (200, 201):
-        print(f"✅ YAML apply success! Status code: {resp.status_code}")
-
-    try:
-        print(json.dumps(resp.json(), indent=2))
-
-        # check if resource applied
-        for r in resp.json():
-            if r["text"] != "Object already exists":
-                raise Exception("Not ready")
-
-    except Exception:
-        print(resp.text)
-        raise Exception("Not ready")
+    # put systemd manifest (grafana VIP service)
+    _apply_manifest(session, host, auth_headers, MANIFEST_FILE_SRV)
 
 
 if __name__ == "__main__":
@@ -450,8 +535,12 @@ if __name__ == "__main__":
             mgx_storage_vol_count()
         elif op == "mgx-cluster":
             mgx_cluster_wait()
+        elif op == "mgx-mgmt-cluster":
+            mgx_mgmt_cluster_wait()
         elif op == "is-metrics-enabled":
             is_metrics_enabled()
+        elif op == "prometheus-federate":
+            prometheus_federate()
         elif op == "cache-type":
             cache_type()
 

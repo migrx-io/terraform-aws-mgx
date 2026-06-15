@@ -40,19 +40,45 @@ resource "null_resource" "provision_mgmt" {
   provisioner "remote-exec" {
     inline = [
       <<EOC
-  echo '${join("\n", [for ni in aws_network_interface.mgmt_primary : tolist(ni.private_ips)[0]])}' > /tmp/mgx-scripts/storage_mgmt_ips.txt
-  EOC
-    ]
-  }
 
-  provisioner "remote-exec" {
-    inline = [
-      "cd /tmp/mgx-scripts/scripts",
-      "chmod +x setup-mgmt.sh",
-      "sudo ./setup-mgmt.sh",
-      # "cd /tmp && rm -rf /tmp/mgx-scripts"
-    ]
-  }
+  echo '${join("\n", [for ni in aws_network_interface.mgmt_primary : tolist(ni.private_ips)[0]])}' > /tmp/mgx-scripts/storage_mgmt_ips.txt
+
+  # mgmt nodes have a single network, so reuse the mgmt IPs as the "data" IPs:
+  # mgx-id and first-node detection then work exactly as on storage nodes.
+  echo '${join("\n", [for ni in aws_network_interface.mgmt_primary : tolist(ni.private_ips)[0]])}' > /tmp/mgx-scripts/storage_data_ips.txt
+
+  cat > /tmp/mgx-scripts/pool_info.json <<'EOF'
+  ${jsonencode({
+      region    = var.region,
+      pool_name = "mgmt",
+      config    = var.mgmt_pool,
+      # Downstream pools to register in the mgmt plugin. node_ips are the storage
+      # nodes' primary (mgmt-subnet) IPs, reachable from the mgmt node on MGX_PORT.
+      pools = {
+        for pool_name in keys(var.storage_pools) :
+        pool_name => {
+          node_ips = [
+            for idx in range(var.storage_pools[pool_name].nodes_count) :
+            tolist(aws_network_interface.storage_primary["${pool_name}-${idx}"].private_ips)[0]
+          ]
+          descr  = var.storage_pools[pool_name].description
+          labels = var.storage_pools[pool_name].labels
+        }
+      }
+})}
+
+  EOC
+]
+}
+
+provisioner "remote-exec" {
+  inline = [
+    "cd /tmp/mgx-scripts/scripts",
+    "chmod +x setup-mgmt.sh",
+    "sudo ./setup-mgmt.sh",
+    # "cd /tmp && rm -rf /tmp/mgx-scripts"
+  ]
+}
 }
 
 # Run on storage nodes
