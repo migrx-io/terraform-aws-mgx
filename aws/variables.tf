@@ -65,6 +65,7 @@ variable "mgmt_pool" {
     nodes_instance_type = string                # EC2 instance type
     nodes_count         = number                # Number of mgmt nodes
     enable_metrics      = optional(bool, false) # Run node_exporter/prometheus on mgmt nodes
+    enable_grafana      = optional(bool, false) # Run grafana on mgmt nodes
   })
 }
 
@@ -87,7 +88,7 @@ variable "storage_pools" {
     s3_backup_bucket_names = optional(list(string), [])
     s3_force_destroy       = bool # Whether to force destroy the S3 bucket (delete even if it contains objects)
     enable_metrics         = bool
-    enable_grafana         = bool
+    enable_grafana         = optional(bool, false)
     # EBS volumes to attach per node, striped into a single RAID0 cache.
     # Only used when raid_level = 0; leave empty for local NVMe pools.
     ebs_volumes = optional(list(object({
