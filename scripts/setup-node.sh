@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# One AMI, two roles. ROLE selects which services run; everything is installed
+# on every node so the image is identical:
+#   storage (default) -> full data plane (SPDK, rclone) enabled
+#   mgmt              -> API-only: SPDK and rclone installed but disabled,
+#                        MGX_ROLE=mgmt set, prometheus federation + mgmt manifest.
+# Invoked from provision.tf as `setup-node.sh storage` / `setup-node.sh mgmt`.
+ROLE=${1:-storage}
+
 source ../secrets.env
 
 export DEBIAN_FRONTEND=noninteractive
@@ -25,6 +33,8 @@ done
 bash -e ./mgx-bootstrap-deb.sh
 
 # 2. Generate mgx-id and mgx-hosts
+#    mgmt nodes have a single network, so storage_data_ips.txt holds the mgmt
+#    IPs (written by terraform); mgx-id / first-node detection work as on storage.
 MGX_ID=$($PY ./setup-helper.py mgx-id)
 
 echo "${MGX_ID}" > ${MGX_VAR_DIR}/mgx-id
@@ -35,6 +45,13 @@ $PY ./setup-helper.py mgx-hosts > ${MGX_VAR_DIR}/mgx-hosts
 # 4. Set envs
 $PY ./setup-helper.py mgx-env > /etc/mgx-env
 
+# mgmt role: plugins run API-only (no SPDK / reconcile loops). The plugins
+# become a metadata/intent store and the mgx-plgn-mgmt plugin federates that
+# state to the downstream pools (placement + push/pull). See mgx-plgn-mgmt.
+if [ "$ROLE" = "mgmt" ]; then
+    echo "MGX_ROLE=mgmt" >> /etc/mgx-env
+fi
+
 # 5. Expose envs
 export $(xargs < /etc/mgx-env)
 
@@ -43,7 +60,8 @@ export CASS_RPC_SEEDS=$($PY ./setup-helper.py mgx-cass-seeds)
 export CASS_NODES_COUNT=$($PY ./setup-helper.py mgx-cass-nodes-count)
 bash -e ./mgx-cassandra-install-deb.sh
 
-# 8. Install spdk deps
+# 8. Install spdk deps (installed on every role for a single AMI; the mgx-spdk*
+#    services are disabled on mgmt below).
 export NBDS_MAX=$($PY ./setup-helper.py mgx-storage-vol-count)
 bash -e ./mgx-spdk-deb.sh
 $PY ./setup-helper.py mgx-spdk > /etc/mgx-spdk
@@ -65,31 +83,40 @@ systemctl enable mgx-core
 systemctl enable mgx-gateway-api
 systemctl enable cron
 
-systemctl enable mgx-spdk
-if [ "$CACHE_TYPE" = "nvme" ]; then
-    systemctl enable mgx-spdk-cache
-else
-    systemctl disable mgx-spdk-cache
-fi
-
 systemctl restart mgx-core
 systemctl restart mgx-gateway-api
 systemctl restart cron
 
-systemctl restart mgx-spdk
-if [ "$CACHE_TYPE" = "nvme" ]; then
-    systemctl restart mgx-spdk-cache
+# SPDK is the data plane: storage runs it, mgmt is API-only so both spdk
+# services stay disabled. The mgx-plgn-* plugins additionally self-gate on
+# MGX_ROLE (API-only, no reconcile loops) on mgmt.
+if [ "$ROLE" = "mgmt" ]; then
+    systemctl disable --now mgx-spdk mgx-spdk-cache || true
 else
-    systemctl stop mgx-spdk-cache
+    systemctl enable mgx-spdk
+    systemctl restart mgx-spdk
+
+    if [ "$CACHE_TYPE" = "nvme" ]; then
+        systemctl enable mgx-spdk-cache
+        systemctl restart mgx-spdk-cache
+    else
+        systemctl disable mgx-spdk-cache
+        systemctl stop mgx-spdk-cache
+    fi
 fi
 
-# 10. Install plugins
+# 10. Install plugins (superset: includes data-plane mgx-rclone and the mgmt
+#     federation plugin mgx-plgn-mgmt; unused ones idle per role).
 bash -e ./mgx-plugins-deb.sh
 
-# rclone backs snapshot transfers; enable on all nodes
-# unit is shipped as rclone.service by the mgx-rclone package
-systemctl enable rclone
-systemctl restart rclone
+# rclone backs snapshot transfers (data plane). Storage runs it; on mgmt the
+# transfers happen on the pools, so it is installed but disabled.
+if [ "$ROLE" = "mgmt" ]; then
+    systemctl disable --now rclone || true
+else
+    systemctl enable rclone
+    systemctl restart rclone
+fi
 
 # Enable metrics
 IS_METRICS=$($PY ./setup-helper.py is-metrics-enabled)
@@ -102,6 +129,11 @@ if [ "$IS_METRICS" = "True" ]; then
         REPLACEMENT="targets: [$(echo $IPS | sed "s/,/:$port', '/g" | sed "s/^/'/;s/$/:$port'/")]"
         sed -i "s|targets: \['localhost:$port'\]|$REPLACEMENT|"  /opt/mgx-metrics/prometheus/prometheus.yml
     done
+
+    # mgmt federates: pull all series from every storage pool's prometheus (/federate)
+    if [ "$ROLE" = "mgmt" ]; then
+        $PY ./setup-helper.py prometheus-federate >> /opt/mgx-metrics/prometheus/prometheus.yml
+    fi
 
     # set grafana secrets
     sed -i "s/^admin_user = .*/admin_user = ${GRAFANA_USER}/" \
@@ -139,6 +171,12 @@ echo "Updating initramfs..."
 update-initramfs -u -k all
 
 # 13. Install manifest
-$PY ./setup-helper.py mgx-cluster
+#     storage: cache/pool + storage/scheduler/snapshot config
+#     mgmt:    mgmt behavior config + downstream pool registry
+if [ "$ROLE" = "mgmt" ]; then
+    $PY ./setup-helper.py mgx-mgmt-cluster
+else
+    $PY ./setup-helper.py mgx-cluster
+fi
 
-echo "Storage OK!"
+echo "$ROLE OK!"

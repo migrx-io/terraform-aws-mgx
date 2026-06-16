@@ -86,6 +86,10 @@ variable "storage_pools" {
     # S3 bucket names for snapshot backups (snapshot dst_bucket). Defaults to
     # empty; when empty the snapshot config falls back to the storage bucket.
     s3_backup_bucket_names = optional(list(string), [])
+    # Buckets this pool should have ACCESS to but does NOT create/own (they are
+    # created by another pool). Only IAM permissions are granted for these names;
+    # no aws_s3_bucket resource is created. Use to share a bucket across pools.
+    s3_bucket_access_names = optional(list(string), [])
     s3_force_destroy       = bool # Whether to force destroy the S3 bucket (delete even if it contains objects)
     enable_metrics         = bool
     enable_grafana         = optional(bool, false)

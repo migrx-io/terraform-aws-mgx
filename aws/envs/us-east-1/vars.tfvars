@@ -64,8 +64,9 @@ storage_pools = {
     r_cache_size_in_mib    = 90000 # read cache
     rw_cache_size_in_mib   = 10000 # write cache
     raid_level             = 0     # 0 = EBS RAID0 cache built from ebs_volumes
-    s3_bucket_names        = ["mgxs3storage1", "mgxs3storage2"]
-    s3_backup_bucket_names = ["mgxs3backup1", "mgxs3backup2"]
+    s3_bucket_names        = ["mgxs3storage1"]
+    s3_backup_bucket_names = ["mgxs3backup1"]
+    s3_bucket_access_names = ["mgxs3storage2", "mgxs3backup2"]
     s3_force_destroy       = true
     enable_metrics         = true
     # EBS volumes attached per node and striped into one RAID0 cache.
@@ -90,8 +91,9 @@ storage_pools = {
     r_cache_size_in_mib    = 90000 # read cache
     rw_cache_size_in_mib   = 10000 # write cache
     raid_level             = 0     # 0 = EBS RAID0 cache built from ebs_volumes
-    s3_bucket_names        = ["mgxs3storage2", "mgxs3storage1"]
-    s3_backup_bucket_names = ["mgxs3backup2", "mgxs3backup1"]
+    s3_bucket_names        = ["mgxs3storage2"]
+    s3_backup_bucket_names = ["mgxs3backup2"]
+    s3_bucket_access_names = ["mgxs3storage1", "mgxs3backup1"]
     s3_force_destroy       = true
     enable_metrics         = true
     # EBS volumes attached per node and striped into one RAID0 cache.

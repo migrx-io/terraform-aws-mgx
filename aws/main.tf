@@ -306,7 +306,7 @@ resource "aws_iam_role" "storage_s3_full_access" {
 resource "aws_iam_role_policy" "s3_bucket_only" {
 
   for_each = {
-    for k, v in var.storage_pools : k => v if length(v.s3_bucket_names) > 0 || length(v.s3_backup_bucket_names) > 0
+    for k, v in var.storage_pools : k => v if length(v.s3_bucket_names) > 0 || length(v.s3_backup_bucket_names) > 0 || length(v.s3_bucket_access_names) > 0
   }
 
   name = "bucket-${each.key}-access-policy"
@@ -327,7 +327,9 @@ resource "aws_iam_role_policy" "s3_bucket_only" {
           [for name in var.storage_pools[each.key].s3_bucket_names : "arn:aws:s3:::${name}"],
           [for name in var.storage_pools[each.key].s3_bucket_names : "arn:aws:s3:::${name}/*"],
           [for name in var.storage_pools[each.key].s3_backup_bucket_names : "arn:aws:s3:::${name}"],
-          [for name in var.storage_pools[each.key].s3_backup_bucket_names : "arn:aws:s3:::${name}/*"]
+          [for name in var.storage_pools[each.key].s3_backup_bucket_names : "arn:aws:s3:::${name}/*"],
+          [for name in var.storage_pools[each.key].s3_bucket_access_names : "arn:aws:s3:::${name}"],
+          [for name in var.storage_pools[each.key].s3_bucket_access_names : "arn:aws:s3:::${name}/*"]
         )
       }
     ]
