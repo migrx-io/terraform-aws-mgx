@@ -40,13 +40,14 @@ registry and metrics federation.
 
 The example roots under `examples/` read the foundation outputs through a
 `local` backend. For real deployments, point every stack at a shared remote
-backend (S3, etc.).
+backend (S3, etc.). Each example is configured by editing the values inline in
+its `main.tf`.
 
 ### 1. Foundation
 
 ```bash
 cd examples/network
-cp terraform.tfvars.example terraform.tfvars   # set vpc_id, subnets, bastion
+# edit main.tf for your account: vpc_id, azs, subnet CIDRs, bastion, key_name
 terraform init
 terraform apply
 ```
@@ -58,8 +59,9 @@ tfvars file per pool) and give each a unique `pool_name`:
 
 ```bash
 cd examples/pool
+# edit main.tf for your account: pool_name, region, nodes_ami, instance/disk sizing, S3 buckets
 terraform init
-terraform apply -var pool_name=pool1
+terraform apply
 ```
 
 Each pool is an independent state — applying or destroying one does not affect
@@ -71,6 +73,7 @@ Apply after the pools so the management nodes discover them on first boot:
 
 ```bash
 cd examples/mgmt
+# edit main.tf for your account: region, nodes_ami, instance type/count
 terraform init
 terraform apply
 ```
