@@ -70,9 +70,9 @@ variable "scripts_path" {
 }
 
 variable "secrets_file_path" {
-  description = "[ssh] Local path to the secrets.env file uploaded as /tmp/mgx-scripts/secrets.env."
+  description = "[ssh] Local path to the secrets.env file uploaded as /tmp/mgx-scripts/secrets.env. Relative paths resolve against the directory terraform runs from."
   type        = string
-  default     = ""
+  default     = "secrets.env"
 }
 
 # --- ssm mode -----------------------------------------------------------------

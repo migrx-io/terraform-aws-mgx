@@ -36,8 +36,9 @@ module "mgmt" {
   enable_grafana      = false
 
   # provisioning (ssh / bastion mode)
-  scripts_path      = "${path.module}/../../scripts"
-  secrets_file_path = "${path.module}/../../scripts/secrets.env"
+  scripts_path = "${path.module}/../../scripts"
+  # secrets_file_path defaults to ./secrets.env (this dir). Create it first:
+  #   cp ../../scripts/secrets.env.example secrets.env
 }
 
 output "node_private_ips" { value = module.mgmt.node_private_ips }

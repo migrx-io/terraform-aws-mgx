@@ -34,7 +34,7 @@ registry and metrics federation.
 - A remote state backend (e.g. S3) shared by all stacks, so the `pool` and
   `mgmt` stacks can read the `network` stack's outputs
 - For `ssh` provisioning: an SSH key pair and a `secrets.env` file
-  (see [`scripts/secrets.env.example`](scripts))
+  (see [`scripts/secrets.env.example`](scripts/secrets.env.example))
 
 ## Setup
 
@@ -42,6 +42,25 @@ The example roots under `examples/` read the foundation outputs through a
 `local` backend. For real deployments, point every stack at a shared remote
 backend (S3, etc.). Each example is configured by editing the values inline in
 its `main.tf`.
+
+For `ssh` provisioning, create the node secrets file first. Each stack reads
+`secrets.env` from the directory you run `terraform apply` from (overridable via
+`secrets_file_path`). The file is shared by every node (mgmt + storage) and is
+git-ignored — copy the template into each stack dir and fill it in:
+
+```bash
+cd examples/pool        # or examples/mgmt
+cp ../../scripts/secrets.env.example secrets.env
+# edit secrets.env (see keys below)
+```
+
+Keys (uploaded to each node, merged over `scripts/mgx-env`, secrets win):
+
+| Key | Description |
+|-----|-------------|
+| `CASS_USER` / `CASS_PASSWD` | Cassandra username / password. |
+| `MGX_GW_X_API_KEY` / `MGX_X_API_KEY` | mgx gateway / node X-API keys. |
+| `MGX_GW_ADMIN_PASSWD` | mgx gateway admin password. |
 
 ### 1. Foundation
 

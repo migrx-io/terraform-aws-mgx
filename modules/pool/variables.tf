@@ -177,9 +177,9 @@ variable "scripts_path" {
 }
 
 variable "secrets_file_path" {
-  description = "[ssh] Local path to the secrets.env uploaded to nodes."
+  description = "[ssh] Local path to the secrets.env uploaded to nodes. Defaults to secrets.env in the directory terraform runs from (the stack dir)."
   type        = string
-  default     = ""
+  default     = "secrets.env"
 }
 
 variable "ssh_user" {

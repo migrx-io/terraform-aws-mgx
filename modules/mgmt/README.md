@@ -50,12 +50,24 @@ module "mgmt" {
   nodes_count         = 3
   enable_metrics      = true
 
-  scripts_path      = "${path.module}/../../scripts"
-  secrets_file_path = "/secure/secrets.env"
+  scripts_path = "${path.module}/../../scripts"
+  # secrets_file_path defaults to ./secrets.env (the dir terraform runs from)
 }
 ```
 
 A runnable root is in [`examples/mgmt`](../../examples/mgmt).
+
+For `ssh` provisioning, `secrets_file_path` defaults to `secrets.env` in the
+directory terraform runs from. It is shared by every node (mgmt + storage) and
+git-ignored — create it from the template before applying:
+
+```bash
+cp ../../scripts/secrets.env.example secrets.env
+```
+
+Keys: `CASS_USER`, `CASS_PASSWD`, `MGX_GW_X_API_KEY`, `MGX_X_API_KEY`,
+`MGX_GW_ADMIN_PASSWD` (see the [root README](../../README.md#setup) for
+descriptions).
 
 ## Key inputs
 

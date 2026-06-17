@@ -37,7 +37,7 @@ and the matching inputs.
 | `bastion_host` | ssh | `""` | Public IP of the bastion. |
 | `bastion_user` | ssh | `""` | Defaults to `ssh_user`. |
 | `scripts_path` | ssh | `""` | Local bootstrap scripts dir. |
-| `secrets_file_path` | ssh | `""` | Local `secrets.env`. |
+| `secrets_file_path` | ssh | `"secrets.env"` | Local `secrets.env`, relative to the dir terraform runs from (copy from [`scripts/secrets.env.example`](../../scripts/secrets.env.example); git-ignored). |
 | `instance_id` | ssm | `""` | EC2 instance id to target. |
 | `scripts_url` | ssm | `""` | HTTPS URL of a gzipped scripts tarball. |
 | `secrets_ssm_path` | ssm | `""` | SSM SecureString with `secrets.env` content. |
