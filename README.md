@@ -1,150 +1,165 @@
-# Storage Infrastructure with Bastion and S3 Access
+# mgx-storage Terraform modules
 
-This Terraform configuration sets up a secure and scalable infrastructure in AWS including:
+Terraform modules to deploy an [mgx-storage](https://migrx.io) cluster on AWS.
+The deployment is composed of three components, each applied as its own
+Terraform state:
 
-- (Optional) Bastion EC2 instance for SSH access
-- Storage EC2 instances across availability zones with IAM roles for S3 access
-- Security groups for controlled access
-- S3 buckets for object storage (1+ per pool)
-- SSH access with a shared key pair
+| Component | Module | Purpose |
+|-----------|--------|---------|
+| Foundation | [`modules/network`](modules/network/README.md) | Subnets, NAT gateway, security group, bastion, key pair |
+| Storage pool | [`modules/pool`](modules/pool/README.md) | One storage pool: nodes, ENIs, EBS cache, IAM, S3 |
+| Management | [`modules/mgmt`](modules/mgmt/README.md) | Management (API) nodes |
 
-## 🔧 Prerequisites
+Node provisioning is handled by a shared module,
+[`modules/provision`](modules/provision/README.md).
 
-- [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.0
-- AWS credentials with permission to create EC2, IAM, VPC, and S3 resources
-- SSH key pair (`~/.ssh/id_rsa.pub`) available locally
+```
+modules/
+  network/     mgmt/     pool/     provision/
+examples/
+  network/     mgmt/     pool/        # runnable reference roots
+scripts/                              # node bootstrap (setup-node.sh, helpers, manifests)
+```
 
-## 📁 File Structure
+You deploy the foundation once, then one `pool` stack per storage pool, plus the
+`mgmt` stack. Pools register their node addresses in SSM under
+`/mgx/<cluster>/pools/`; the management stack reads that path to build its pool
+registry and metrics federation.
 
+## Requirements
+
+- Terraform >= 1.4
+- AWS credentials with permissions for EC2, IAM, VPC, S3, and SSM
+- An existing VPC and a public subnet (for the NAT gateway and bastion)
+- A remote state backend (e.g. S3) shared by all stacks, so the `pool` and
+  `mgmt` stacks can read the `network` stack's outputs
+- For `ssh` provisioning: an SSH key pair and a `secrets.env` file
+  (see [`scripts/secrets.env.example`](scripts))
+
+## Setup
+
+The example roots under `examples/` read the foundation outputs through a
+`local` backend. For real deployments, point every stack at a shared remote
+backend (S3, etc.).
+
+### 1. Foundation
 
 ```bash
-aws/
-├── main.tf              # Core infrastructure definitions
-├── provider.tf          # AWS provider setup
-├── variables.tf         # Input variables
-├── outputs.tf           # Output values
-├── envs/
-│   └── us-east-1.tfvars # Example environment variables
-
+cd examples/network
+cp terraform.tfvars.example terraform.tfvars   # set vpc_id, subnets, bastion
+terraform init
+terraform apply
 ```
 
-## 🚀 Usage
+### 2. Storage pools
 
-1. Go to `aws` dir
+Apply one stack per pool. Copy the example directory (or use workspaces / a
+tfvars file per pool) and give each a unique `pool_name`:
 
-    ```
-    cd ./aws
-    ```
-
-2. Initialize Terraform
-
-    ```
-    terraform init
-    ```
-
-3. Set your variables
-
-    *Bastion resources are only created when bastion_enable = true.*
-
-    *You can define multiple storage_pools with independent configuration.*
-
-    *All storage instances are granted S3 access via IAM roles.*
-
-    Edit or create a `.tfvars` file inside `envs/`. Example: `envs/us-east-1.tfvars`
-
-    ```
-
-    region = "us-east-1"
-
-    vpc_id = "vpc-095dc0635c6244fe3"
-
-    azs = ["us-east-1a", 
-           "us-east-1b", 
-           "us-east-1c"]
-
-    mgmt_subnet_cidrs = [
-        "172.31.96.0/20",  # us-east-1a primary
-        "172.31.97.0/20",  # us-east-1b primary
-        "172.31.98.0/20"   # us-east-1c primary
-    ]
-
-    storage_subnet_cidrs = [
-        "172.31.99.0/20",   # us-east-1a secondary
-        "172.31.100.0/20",  # us-east-1b secondary
-        "172.31.101.0/20"   # us-east-1c secondary
-    ]
-
-    bastion = {
-        enable        = true
-        vpc_subnet    = "subnet-06b5191fc3bf0caff"
-        ami           = "ami-0f9de6e2d2f067fca"
-        instance_type = "t2.micro"
-        whitelist_ips = ["0.0.0.0/0"]
-    }
-
-    mgmt_pool = {
-        nodes_ami           = "ami-0f9de6e2d2f067fca"
-        nodes_instance_type = "t3a.xlarge"
-        nodes_count         = 1
-    }
-
-    storage_pools = {
-        pool1 = {
-            nodes_ami           = "ami-0f9de6e2d2f067fca"
-            nodes_instance_type = "c5ad.2xlarge"
-            nodes_count         = 3
-            s3_bucket_names     = ["mgxs3storage1"]
-            s3_force_destroy    = true
-        }
-        pool2 = {
-            nodes_ami           = "ami-0f9de6e2d2f067fca"
-            nodes_instance_type = "c5ad.2xlarge"
-            nodes_count         = 0
-            s3_bucket_names     = ["mgxs3storage2"]
-            s3_force_destroy    = true
-        }
-    }
-
-    ```
-
-4. Apply the configuration
-
-    ```
-    terraform apply -var-file=./envs/us-east-1/vars.tfvars
-    ```
-
-5. Get bastion IP and SSH into bastion
-
-    Get public IPs from outputs:
-
-    ```
-    terraform output bastion_public_ip
-    ```
-
-    ```
-    eval "$(ssh-agent -s)"
-    ssh-add ~/.ssh/id_rsa
-
-
-    ssh -A ubuntu@<bastion_public_ip>
-    ```
-
-6. SSH into storage nodes from bastion (SSH Agent Forwarding)
-
-    Get private IPs from outputs:
-
-    ```
-    terraform output storage_node_mgmt_private_ips
-    ```
-
-    Then SSH from bastion:
-
-    ```
-    ssh -A ubuntu@<storage_node_private_ip>
-    ```
-
-7. SSH local port forwarding to grafana
-
+```bash
+cd examples/pool
+terraform init
+terraform apply -var pool_name=pool1
 ```
-ssh -L 127.0.0.1:3000:<storage_node_private_ip>:3000 ubuntu@<bastion_public_ip> -N
+
+Each pool is an independent state — applying or destroying one does not affect
+the others.
+
+### 3. Management
+
+Apply after the pools so the management nodes discover them on first boot:
+
+```bash
+cd examples/mgmt
+terraform init
+terraform apply
+```
+
+## Configuration
+
+Key inputs per module (full reference in each module's README):
+
+**network** — `vpc_id`, `azs`, `mgmt_subnet_cidrs`, `storage_subnet_cidrs`,
+`bastion`, `nat_public_subnet_id`, `key_name`.
+
+**pool** — `pool_name`, `region`, `network`, `nodes_ami`, `nodes_instance_type`,
+`nodes_count`, `raid_level`, `ebs_volumes`, `nvme_node_disks_count`,
+`r_cache_size_in_mib`, `rw_cache_size_in_mib`, `max_volumes_count`,
+`s3_bucket_names`, `s3_backup_bucket_names`, `s3_bucket_access_names`,
+`enable_metrics`, `enable_grafana`.
+
+**mgmt** — `region`, `network`, `nodes_ami`, `nodes_instance_type`,
+`nodes_count`, `enable_metrics`, `enable_grafana`.
+
+### Cache sizing
+
+`r_cache_size_in_mib` (read) and `rw_cache_size_in_mib` (write) are **per-disk**
+sizes; how they map to capacity depends on `raid_level`:
+
+- **NVMe cache (`raid_level` = 1 or 10).** Each NVMe disk is its own lvstore.
+  Write data is replicated across peers, so per disk the cache carves one read
+  lvol plus one write lvol per peer (`rw_cache_size_in_mib × nodes_count`). Size
+  against a single disk:
+
+  ```
+  available = disk_GiB * 1024 * 0.93                       # ~7% reserved for metadata
+  rw_cache_size * nodes_count + r_cache_size <= available  # rw is replicated per peer
+  ```
+
+- **EBS cache (`raid_level` = 0).** All per-node `ebs_volumes` are striped into
+  one RAID0 filesystem shared by the read and write caches. `nvme_node_disks_count`
+  must equal the total `ebs_volumes` count, and the pool must use a single AZ.
+  Size against a single EBS volume:
+
+  ```
+  available = ebs_volume_GiB * 1024 * 0.93
+  rw_cache_size + r_cache_size <= available     # e.g. rw ~10%, r ~90%
+  ```
+
+## Provisioning modes
+
+Set `provision_mode` on the `pool` and `mgmt` modules:
+
+- **`ssh`** (default) — Terraform connects through the bastion, uploads the local
+  `scripts/` directory and `secrets.env`, and runs `setup-node.sh`. Required
+  inputs: `scripts_path`, `secrets_file_path`, `ssh_user`, `ssh_private_key_path`.
+- **`ssm`** — agentless, no bastion. Nodes pull a scripts tarball from
+  `scripts_url`, read `secrets.env` from an SSM SecureString (`secrets_ssm_path`),
+  and run via SSM Run Command. The modules attach `AmazonSSMManagedInstanceCore`
+  to the node role automatically. Required inputs: `scripts_url`,
+  `secrets_ssm_path`.
+
+## Operations
+
+| Task | Action |
+|------|--------|
+| Add a pool | New pool stack, `terraform apply`. |
+| Remove a pool | `terraform destroy` in that pool's stack, then re-apply `mgmt`. |
+| Scale a pool | Change `nodes_count`, `terraform apply` that pool. |
+| Scale management | Change `nodes_count`, `terraform apply` the `mgmt` stack. |
+| Re-register pools | `terraform apply` the `mgmt` stack. |
+
+## Node addressing
+
+Node ENIs are assigned private IPs by AWS and keep them for the life of the ENI,
+including across instance reboots, AMI changes, and instance-type changes
+(`ignore_changes = [private_ips]`). IPs change only if an ENI itself is
+recreated (pool teardown or subnet change). The addresses are exposed as module
+outputs and published to SSM for the management stack.
+
+## Accessing nodes
+
+Get the bastion address and connect with SSH agent forwarding:
+
+```bash
+terraform -chdir=examples/network output bastion_public_ip
+eval "$(ssh-agent -s)" && ssh-add ~/.ssh/id_rsa
+ssh -A ubuntu@<bastion_public_ip>
+ssh -A ubuntu@<node_private_ip>      # from the bastion
+```
+
+Forward Grafana (when enabled) through the bastion:
+
+```bash
+ssh -L 127.0.0.1:3000:<node_private_ip>:3000 ubuntu@<bastion_public_ip> -N
 ```
