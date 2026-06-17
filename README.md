@@ -1,8 +1,7 @@
 # mgx-storage Terraform modules
 
 Terraform modules to deploy an [mgx-storage](https://migrx.io) cluster on AWS.
-The deployment is composed of three components, each applied as its own
-Terraform state:
+The deployment is composed of three components:
 
 | Component | Module | Purpose |
 |-----------|--------|---------|
