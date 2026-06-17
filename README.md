@@ -60,6 +60,7 @@ Keys (uploaded to each node, merged over `scripts/mgx-env`, secrets win):
 | `CASS_USER` / `CASS_PASSWD` | Cassandra username / password. |
 | `MGX_GW_X_API_KEY` / `MGX_X_API_KEY` | mgx gateway / node X-API keys. |
 | `MGX_GW_ADMIN_PASSWD` | mgx gateway admin password. |
+| `GRAFANA_USER` / `GRAFANA_PASSWD` | Grafana admin user / password (used when metrics are enabled). |
 
 ### 1. Foundation
 
