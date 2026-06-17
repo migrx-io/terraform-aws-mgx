@@ -28,7 +28,7 @@ keeps drift from ever replacing an ENI.
 data "terraform_remote_state" "network" { /* ... */ }
 
 module "pool" {
-  source = "migrx/storage/aws//modules/pool"
+  source = "migrx-io/mgx/aws//modules/pool"
 
   cluster   = "main"
   pool_name = "pool1"

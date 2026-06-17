@@ -19,7 +19,7 @@ This module is provider-agnostic: it declares `required_providers` but no
 
 ```hcl
 module "network" {
-  source = "migrx/storage/aws//modules/network" # or a local/git path
+  source = "migrx-io/mgx/aws//modules/network" # or a local/git path
 
   name_prefix = "mgx-storage"
   azs         = ["us-east-1a", "us-east-1b", "us-east-1c"]

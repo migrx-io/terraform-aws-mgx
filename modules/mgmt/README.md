@@ -39,7 +39,7 @@ mgmt configuration.
 data "terraform_remote_state" "network" { /* ... */ }
 
 module "mgmt" {
-  source = "migrx/storage/aws//modules/mgmt"
+  source = "migrx-io/mgx/aws//modules/mgmt"
 
   cluster = "main"
   region  = "us-east-1"
