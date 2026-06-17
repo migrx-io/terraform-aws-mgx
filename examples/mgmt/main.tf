@@ -33,7 +33,7 @@ module "mgmt" {
   nodes_instance_type = "t4g.xlarge"
   nodes_count         = 3
   enable_metrics      = true
-  enable_grafana      = false
+  enable_grafana      = true
 
   # provisioning (ssh / bastion mode)
   scripts_path = "${path.module}/../../scripts"
