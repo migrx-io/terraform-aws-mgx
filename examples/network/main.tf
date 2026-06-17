@@ -24,14 +24,14 @@ module "network" {
   azs    = ["us-east-1a", "us-east-1b", "us-east-1c"]
 
   mgmt_subnet_cidrs = [
-    "172.31.96.0/20", # us-east-1a
-    "172.31.97.0/20", # us-east-1b
-    "172.31.98.0/20", # us-east-1c
+    "172.31.96.0/20",  # us-east-1a
+    "172.31.112.0/20", # us-east-1b
+    "172.31.128.0/20", # us-east-1c
   ]
   storage_subnet_cidrs = [
-    "172.31.99.0/20",  # us-east-1a
-    "172.31.100.0/20", # us-east-1b
-    "172.31.101.0/20", # us-east-1c
+    "172.31.144.0/20", # us-east-1a
+    "172.31.160.0/20", # us-east-1b
+    "172.31.176.0/20", # us-east-1c
   ]
 
   bastion = {

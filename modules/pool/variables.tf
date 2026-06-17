@@ -27,6 +27,12 @@ variable "network" {
   })
 }
 
+variable "az" {
+  description = "Pin every node and EBS volume in this pool to a single AZ by name (e.g. 'us-east-1a'). Must be one of network.azs. Required for raid_level = 0 on a multi-AZ network, since EBS volumes are AZ-bound. When null, nodes round-robin across all network AZs."
+  type        = string
+  default     = null
+}
+
 # --- Pool sizing / nodes ------------------------------------------------------
 
 variable "description" {

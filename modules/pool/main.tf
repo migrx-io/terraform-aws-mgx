@@ -2,6 +2,13 @@ locals {
   azs  = var.network.azs
   n_az = length(local.azs)
 
+  # When var.az is set, the pool is pinned to that single AZ: every node and
+  # volume uses this index into the network AZ/subnet lists. null = round-robin.
+  # (lookup, not index(), so an invalid az falls through to the precondition
+  # below for a clean error instead of crashing local evaluation.)
+  az_indices      = { for i, a in local.azs : a => i }
+  pinned_az_index = var.az != null ? lookup(local.az_indices, var.az, null) : null
+
   common_tags = merge({
     Service   = "mgx-storage"
     ManagedBy = "terraform"
@@ -12,7 +19,7 @@ locals {
   nodes = {
     for idx in range(var.nodes_count) : "${var.pool_name}-${idx}" => {
       index    = idx
-      az_index = idx % local.n_az
+      az_index = local.pinned_az_index != null ? local.pinned_az_index : idx % local.n_az
     }
   }
 
@@ -39,7 +46,7 @@ locals {
       "${var.pool_name}-${idx}-${vidx}" => {
         node_key     = "${var.pool_name}-${idx}"
         node_idx     = idx
-        az_index     = idx % local.n_az
+        az_index     = local.pinned_az_index != null ? local.pinned_az_index : idx % local.n_az
         device_index = vidx
         size         = spec.size
         type         = spec.type
@@ -61,8 +68,12 @@ locals {
 resource "terraform_data" "validate" {
   lifecycle {
     precondition {
-      condition     = var.raid_level != 0 || local.n_az == 1
-      error_message = "raid_level = 0 (EBS RAID0 cache) requires a single AZ, because EBS volumes are AZ-bound."
+      condition     = var.az == null || contains(local.azs, var.az)
+      error_message = "az must be one of the network AZs: ${join(", ", local.azs)}."
+    }
+    precondition {
+      condition     = var.raid_level != 0 || var.az != null || local.n_az == 1
+      error_message = "raid_level = 0 (EBS RAID0 cache) requires the pool to live in a single AZ: set `az` to one of the network AZs, because EBS volumes are AZ-bound."
     }
     precondition {
       condition     = var.raid_level != 0 || var.nvme_node_disks_count == local.ebs_total_count
