@@ -168,7 +168,13 @@ if [ "$IS_METRICS" = "True" ]; then
     IPS=$CASS_RPC_SEEDS
 
     for port in 9100 8082; do
-        REPLACEMENT="targets: [$(echo $IPS | sed "s/,/:$port', '/g" | sed "s/^/'/;s/$/:$port'/")]"
+        # mgmt gets the mgx-metrics (8082) series via /federate from the pools
+        # below, so it does not scrape 8082 directly - that would duplicate them.
+        if [ "$ROLE" = "mgmt" ] && [ "$port" = "8082" ]; then
+            REPLACEMENT="targets: []"
+        else
+            REPLACEMENT="targets: [$(echo $IPS | sed "s/,/:$port', '/g" | sed "s/^/'/;s/$/:$port'/")]"
+        fi
         sed -i "s|targets: \['localhost:$port'\]|$REPLACEMENT|"  /opt/mgx-metrics/prometheus/prometheus.yml
     done
 
