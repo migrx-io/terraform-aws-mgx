@@ -13,6 +13,26 @@
 echo " Cassandra Cluster Setup"
 echo ""
 
+# Retry a command on transient cluster errors. cqlsh / cassandra-migrate use the
+# Python driver and fail with "Connection error: ('Unable to connect to any
+# servers', [...])" while gossip is still settling or a peer is briefly
+# unreachable. setup-node.sh runs this script under `bash -e`, so without a retry
+# a single blip aborts the whole provisioning run. Every wrapped statement is
+# idempotent (CREATE ... IF NOT EXISTS, ALTER, DROP IF EXISTS, migrate), so it is
+# safe to run again.
+retry() {
+    local n=0 max=60 delay=5
+    until "$@"; do
+        n=$((n + 1))
+        if [ "$n" -ge "$max" ]; then
+            echo "❌ Command still failing after ${max} attempts: $*" >&2
+            return 1
+        fi
+        echo "Attempt ${n}/${max} failed, retrying in ${delay}s: $*"
+        sleep "$delay"
+    done
+}
+
 echo "STEP 1. Clear data.."
 echo ""
 
@@ -112,16 +132,16 @@ if [ "${CASS_RPC_ADDR}" = "${FIRST_SEED_IP}" ]; then
 		sleep 5
 	    done
 
-	    cqlsh -u cassandra -p cassandra ${CASS_RPC_ADDR} -e  "ALTER KEYSPACE \"system_auth\" WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'dc1' : 3};"
+	    retry cqlsh -u cassandra -p cassandra ${CASS_RPC_ADDR} -e  "ALTER KEYSPACE \"system_auth\" WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'dc1' : 3};"
 
-	    cqlsh -u cassandra -p cassandra ${CASS_RPC_ADDR} -e "CREATE ROLE ${CASS_USER} WITH PASSWORD = '${CASS_PASSWD}' AND SUPERUSER = true AND LOGIN = true;"
+	    retry cqlsh -u cassandra -p cassandra ${CASS_RPC_ADDR} -e "CREATE ROLE IF NOT EXISTS ${CASS_USER} WITH PASSWORD = '${CASS_PASSWD}' AND SUPERUSER = true AND LOGIN = true;"
 
-	    cqlsh -u ${CASS_USER} -p ${CASS_PASSWD} ${CASS_RPC_ADDR} -e "ALTER ROLE cassandra WITH PASSWORD='${CASS_PASSWD}' AND SUPERUSER=false;"
+	    retry cqlsh -u ${CASS_USER} -p ${CASS_PASSWD} ${CASS_RPC_ADDR} -e "ALTER ROLE cassandra WITH PASSWORD='${CASS_PASSWD}' AND SUPERUSER=false;"
 
         # install schema
         cd /opt/mgx-schema
-        cqlsh -u ${CASS_USER} -p ${CASS_PASSWD} ${CASS_RPC_ADDR} -e 'DROP KEYSPACE IF EXISTS dc1;'
-        ${PYENV}/cassandra-migrate -y -m prod -c dc1.yaml -u ${CASS_USER} -P ${CASS_PASSWD} -H ${CASS_RPC_ADDR} migrate
+        retry cqlsh -u ${CASS_USER} -p ${CASS_PASSWD} ${CASS_RPC_ADDR} -e 'DROP KEYSPACE IF EXISTS dc1;'
+        retry ${PYENV}/cassandra-migrate -y -m prod -c dc1.yaml -u ${CASS_USER} -P ${CASS_PASSWD} -H ${CASS_RPC_ADDR} migrate
         cd -
 
     fi
