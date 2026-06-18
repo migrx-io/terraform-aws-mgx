@@ -5,7 +5,7 @@ metadata:
     storage:
       config: add
 spec:
-  name: default
+  name: {name}
   storage_bucket: {s3_bucket_name}
   storage_s3purge: "yes"
   cache_r_cache_size: 4096
@@ -30,7 +30,7 @@ spec:
   default: "yes"
   enabled: "yes"
   labels: "default=yes"
-  name: default
+  name: {name}
   node_selector: null
   pool_selector: null
 ---
@@ -41,7 +41,7 @@ metadata:
     snapshot:
       config: add
 spec:
-  name: default
+  name: {name}
   src_bucket: {s3_bucket_name}
   dst_bucket: {s3_backup_bucket}
   storage_class: GLACIER_IR

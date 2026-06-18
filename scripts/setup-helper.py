@@ -280,8 +280,10 @@ def generate_cache_yaml():
     # Format template
     rendered = template.format(**values)
 
-    # generate default config for volumes
+    # generate storage/scheduler/snapshot config for volumes; name them after
+    # the pool so each pool's configs are unique on the management side.
     rendered_s = template_s.format(**{
+        "name": values["name"],
         "s3_bucket_name": values["s3_bucket"],
         "s3_backup_bucket": values["s3_backup_bucket"],
     })
