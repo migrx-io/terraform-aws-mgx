@@ -57,7 +57,7 @@ if [ "$ROLE" = "mgmt" ]; then
     # mgx-plgn-mgmt).
     echo 'MGX_REQUESTS_LOG="y"' >> /etc/mgx-env
     echo 'MGX_REQUESTS_FILTER_PLUGIN="cache|storage|snapshot"' >> /etc/mgx-env
-    echo 'MGX_REQUESTS_FILTER_OP="_add|_create|_update|_resize|_del|_clear"' >> /etc/mgx-env
+    echo 'MGX_REQUESTS_FILTER_OP="_add|_create|_update|_resize|_del"' >> /etc/mgx-env
 fi
 
 # 5. Expose envs
