@@ -6,8 +6,18 @@ set -euo pipefail
 #   storage (default) -> full data plane (SPDK, rclone) enabled
 #   mgmt              -> API-only: SPDK and rclone installed but disabled,
 #                        MGX_ROLE=mgmt set, prometheus federation + mgmt manifest.
-# Invoked from provision.tf as `setup-node.sh storage` / `setup-node.sh mgmt`.
+# Invoked from provision.tf as `setup-node.sh <role> <prebaked>`, e.g.
+# `setup-node.sh storage false` / `setup-node.sh mgmt true`.
 ROLE=${1:-storage}
+
+# PREBAKED selects the AMI flavour:
+#   false (default) -> clean Ubuntu AMI: install every package from the repo,
+#                      then configure.
+#   true            -> AMI already baked with packages + scripts: skip the
+#                      package-install scripts and only run configuration.
+# The runtime/config steps (cassandra cluster, spdk runtime, manifests, service
+# enablement) always run; only the apt-install scripts are gated.
+PREBAKED=${2:-false}
 
 source ../secrets.env
 
@@ -16,21 +26,28 @@ MGX_VAR_DIR=/var/lib/migrx
 PY=/opt/mgx-pyenv3/bin/python
 MDADM_CONF_FILE="/etc/mdadm/mdadm.conf"
 
-# 0. Wait while NAT will be reachable
+# 0. Wait while NAT will be reachable. Only needed for the package-install path;
+#    a prebaked AMI configures from local packages and may not have repo access.
 sleep 30
 
-while true; do
-  echo "Checking repo availability via NAT..."
-  if curl -s -o /dev/null -w "%{http_code}" https://repo.migrx.io | grep -q "404"; then
-    echo "Repo reachable, NAT is ready."
-    break
-  fi
-  echo "Repo not reachable yet, retrying in 10s..."
-  sleep 10
-done
+if [ "$PREBAKED" != "true" ]; then
+  while true; do
+    echo "Checking repo availability via NAT..."
+    if curl -s -o /dev/null -w "%{http_code}" https://repo.migrx.io | grep -q "404"; then
+      echo "Repo reachable, NAT is ready."
+      break
+    fi
+    echo "Repo not reachable yet, retrying in 10s..."
+    sleep 10
+  done
+fi
 
 # 1. install mgx-core and etc
-bash -e ./mgx-bootstrap-deb.sh
+if [ "$PREBAKED" != "true" ]; then
+    bash -e ./mgx-bootstrap-deb.sh
+else
+    echo "Prebaked AMI: skipping mgx-bootstrap-deb.sh (packages already installed)."
+fi
 
 # 2. Generate mgx-id and mgx-hosts
 #    mgmt nodes have a single network, so storage_data_ips.txt holds the mgmt
@@ -63,15 +80,28 @@ fi
 # 5. Expose envs
 export $(xargs < /etc/mgx-env)
 
-# 6. Install cassandra
+# 6. Install + configure cassandra. Install (package only, no env vars) is split
+#    out so it can be baked into an image; the cluster step configures addresses,
+#    seeds, auth and schema from the env vars below.
 export CASS_RPC_SEEDS=$($PY ./setup-helper.py mgx-cass-seeds)
 export CASS_NODES_COUNT=$($PY ./setup-helper.py mgx-cass-nodes-count)
-bash -e ./mgx-cassandra-install-deb.sh
+if [ "$PREBAKED" != "true" ]; then
+    bash -e ./mgx-cassandra-install-deb.sh
+else
+    echo "Prebaked AMI: skipping mgx-cassandra-install-deb.sh."
+fi
+bash -e ./mgx-cassandra-cluster-deb.sh
 
-# 8. Install spdk deps (installed on every role for a single AMI; the mgx-spdk*
-#    services are disabled on mgmt below).
+# 8. Install + configure spdk (installed on every role for a single AMI; the
+#    mgx-spdk* services are disabled on mgmt below). The runtime config (nbd
+#    module, hugepages, cache dirs) always runs even on a prebaked AMI.
 export NBDS_MAX=$($PY ./setup-helper.py mgx-storage-vol-count)
-bash -e ./mgx-spdk-deb.sh
+if [ "$PREBAKED" != "true" ]; then
+    bash -e ./mgx-spdk-deb.sh
+else
+    echo "Prebaked AMI: skipping mgx-spdk-deb.sh."
+fi
+bash -e ./mgx-spdk-configure-deb.sh
 $PY ./setup-helper.py mgx-spdk > /etc/mgx-spdk
 cp ./mgx-spdk-cache /etc/mgx-spdk-cache
 
@@ -115,7 +145,11 @@ fi
 
 # 10. Install plugins (superset: includes data-plane mgx-rclone and the mgmt
 #     federation plugin mgx-plgn-mgmt; unused ones idle per role).
-bash -e ./mgx-plugins-deb.sh
+if [ "$PREBAKED" != "true" ]; then
+    bash -e ./mgx-plugins-deb.sh
+else
+    echo "Prebaked AMI: skipping mgx-plugins-deb.sh."
+fi
 
 # rclone backs snapshot transfers (data plane). Storage runs it; on mgmt the
 # transfers happen on the pools, so it is installed but disabled.

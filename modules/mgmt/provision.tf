@@ -51,6 +51,7 @@ module "provision" {
   for_each = var.provision_enabled ? aws_instance.mgmt_node : {}
 
   provision_mode = var.provision_mode
+  prebaked       = var.prebaked
   role           = "mgmt"
 
   # ssh

@@ -170,6 +170,12 @@ variable "provision_mode" {
   }
 }
 
+variable "prebaked" {
+  description = "AMI flavour: false (clean Ubuntu, install all packages then configure) or true (packages/scripts already baked into nodes_ami, configure only)."
+  type        = bool
+  default     = false
+}
+
 variable "scripts_path" {
   description = "[ssh] Local path to the node bootstrap scripts directory."
   type        = string

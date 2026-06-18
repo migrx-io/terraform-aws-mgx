@@ -19,6 +19,12 @@ variable "role" {
   }
 }
 
+variable "prebaked" {
+  description = "AMI flavour passed to setup-node.sh as its 2nd arg: false (clean Ubuntu, install all packages then configure) or true (packages/scripts already baked, configure only)."
+  type        = bool
+  default     = false
+}
+
 variable "files" {
   description = "Extra files (filename => content) written into /tmp/mgx-scripts/ before setup runs (e.g. pool_info.json, *_ips.txt)."
   type        = map(string)

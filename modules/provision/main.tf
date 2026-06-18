@@ -37,7 +37,7 @@ locals {
     [
       "cd /tmp/mgx-scripts/scripts",
       "chmod +x setup-node.sh",
-      "sudo ./setup-node.sh ${var.role}",
+      "sudo ./setup-node.sh ${var.role} ${var.prebaked}",
     ],
   )
 }
@@ -97,7 +97,7 @@ resource "terraform_data" "node" {
     inline = [
       "cd /tmp/mgx-scripts/scripts",
       "chmod +x setup-node.sh",
-      "sudo ./setup-node.sh ${var.role}",
+      "sudo ./setup-node.sh ${var.role} ${var.prebaked}",
     ]
   }
 }
