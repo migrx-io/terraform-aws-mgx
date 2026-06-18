@@ -50,6 +50,14 @@ $PY ./setup-helper.py mgx-env > /etc/mgx-env
 # state to the downstream pools (placement + push/pull). See mgx-plgn-mgmt.
 if [ "$ROLE" = "mgmt" ]; then
     echo "MGX_ROLE=mgmt" >> /etc/mgx-env
+
+    # Request logging: append every successful create/update/resize/delete/clear
+    # request to the requests_log table, scoped to the cache/storage/snapshot
+    # plugins. mgmt replays these entries onto the downstream pools (see
+    # mgx-plgn-mgmt).
+    echo 'MGX_REQUESTS_LOG="y"' >> /etc/mgx-env
+    echo 'MGX_REQUESTS_FILTER_PLUGIN="cache|storage|snapshot"' >> /etc/mgx-env
+    echo 'MGX_REQUESTS_FILTER_OP="_add|_create|_update|_resize|_del|_clear"' >> /etc/mgx-env
 fi
 
 # 5. Expose envs
