@@ -166,7 +166,15 @@ IS_METRICS=$($PY ./setup-helper.py is-metrics-enabled)
 if [ "$IS_METRICS" = "True" ]; then
     # update peers to scrape
 
-    IPS=$CASS_RPC_SEEDS
+    # Storage nodes normally scrape every peer (full per-pool replica). When
+    # cross_peer_scrape is disabled the pool is attached to mgmt, which federates
+    # each node - so a node only scrapes its own metrics (localhost).
+    CROSS_PEER=$($PY ./setup-helper.py is-cross-peer-scrape)
+    if [ "$ROLE" = "storage" ] && [ "$CROSS_PEER" != "True" ]; then
+        IPS="localhost"
+    else
+        IPS=$CASS_RPC_SEEDS
+    fi
 
     for port in 9100 8082; do
         # mgmt gets the mgx-metrics (8082) series via /federate from the pools
@@ -179,7 +187,9 @@ if [ "$IS_METRICS" = "True" ]; then
         sed -i "s|targets: \['localhost:$port'\]|$REPLACEMENT|"  /opt/mgx-metrics/prometheus/prometheus.yml
     done
 
-    # mgmt federates: pull all series from every storage pool's prometheus (/federate)
+    # mgmt federates {job=~".+"} from the pool nodes (endpoint-agnostic). With
+    # cross_peer_scrape=false each node holds only its own series, so mgmt
+    # federates every node; with true it federates one node per pool (replica).
     if [ "$ROLE" = "mgmt" ]; then
         $PY ./setup-helper.py prometheus-federate >> /opt/mgx-metrics/prometheus/prometheus.yml
     fi

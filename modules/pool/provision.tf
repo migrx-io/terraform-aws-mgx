@@ -29,6 +29,7 @@ locals {
     s3_force_destroy       = var.s3_force_destroy
     enable_metrics         = var.enable_metrics
     enable_grafana         = var.enable_grafana
+    cross_peer_scrape      = var.cross_peer_scrape
     ebs_volumes            = var.ebs_volumes
   }
 

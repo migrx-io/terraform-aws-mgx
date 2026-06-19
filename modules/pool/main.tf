@@ -282,9 +282,10 @@ resource "aws_ssm_parameter" "pool" {
   # node_ips are the nodes' primary (mgmt-subnet) IPs, reachable by the mgmt
   # plugin on MGX_PORT. Ordered by node index for determinism.
   value = jsonencode({
-    node_ips = [for k in local.ordered_keys : tolist(aws_network_interface.storage_primary[k].private_ips)[0]]
-    descr    = var.description
-    labels   = var.labels
+    node_ips          = [for k in local.ordered_keys : tolist(aws_network_interface.storage_primary[k].private_ips)[0]]
+    descr             = var.description
+    labels            = var.labels
+    cross_peer_scrape = var.cross_peer_scrape
   })
 
   tags = local.common_tags

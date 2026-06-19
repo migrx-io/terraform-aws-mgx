@@ -202,11 +202,33 @@ def is_grafana_enabled():
     return d.get("config", {}).get("enable_grafana")
 
 
+def is_cross_peer_scrape():
+    """Whether this pool's nodes scrape each other (full per-pool replica).
+    Defaults to True (standalone pool). Set false when mgmt scrapes every node
+    directly, so each node only scrapes its own metrics."""
+
+    with open(POOL_INFO_FILE, "r") as f:
+        d = json.load(f)
+
+    print(d.get("config", {}).get("cross_peer_scrape", True))
+
+
 def prometheus_federate():
-    """Emit Prometheus federation scrape jobs (one per downstream storage pool)
-    for the mgmt node. Each pool node's prometheus already scrapes the whole
-    pool, so the pools are full replicas - federate from a single node per pool
-    (the first) to pull all of its series via /federate without duplicates."""
+    """Emit each mgmt node's federation jobs, one per downstream storage pool.
+
+    Federation is endpoint-agnostic: a pool node's own prometheus already
+    scrapes every local endpoint (/metrics, /plugin/metrics, ...), so pulling
+    {job=~".+"} via /federate re-exports all of it without mgmt knowing the
+    paths.
+
+    cross_peer_scrape=false (mgmt-attached pools): each node holds only its own
+    series, so mgmt federates from EVERY node - the union is exact (no dupes),
+    with no node-selection SPOF. A per-node 'node' label keeps series distinct
+    even when a node scrapes itself as localhost.
+
+    cross_peer_scrape=true (standalone replica left attached): every node holds
+    the whole pool, so we federate from a single node (the first) to avoid
+    duplicate series."""
 
     with open(POOL_INFO_FILE, "r") as f:
         d = json.load(f)
@@ -217,7 +239,19 @@ def prometheus_federate():
         if not node_ips:
             continue
 
-        target = "{}:9090".format(node_ips[0])
+        if pool.get("cross_peer_scrape", True):
+            # Full replica: one node already has the whole pool's series.
+            groups = """      - targets: ['{ip}:9090']
+        labels:
+          pool: '{name}'""".format(ip=node_ips[0], name=name)
+        else:
+            # Each node holds only its own series: federate them all, tagging
+            # each target with its node so localhost instances don't collide.
+            groups = "\n".join("""      - targets: ['{ip}:9090']
+        labels:
+          pool: '{name}'
+          node: '{ip}'""".format(ip=ip, name=name) for ip in node_ips)
+
         blocks.append("""
   - job_name: 'federate-{name}'
     honor_labels: true
@@ -226,9 +260,7 @@ def prometheus_federate():
       'match[]':
         - '{{job=~".+"}}'
     static_configs:
-      - targets: ['{target}']
-        labels:
-          pool: '{name}'""".format(name=name, target=target))
+{groups}""".format(name=name, groups=groups))
 
     print("\n".join(blocks))
 
@@ -541,6 +573,8 @@ if __name__ == "__main__":
             mgx_mgmt_cluster_wait()
         elif op == "is-metrics-enabled":
             is_metrics_enabled()
+        elif op == "is-cross-peer-scrape":
+            is_cross_peer_scrape()
         elif op == "prometheus-federate":
             prometheus_federate()
         elif op == "cache-type":

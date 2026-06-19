@@ -151,6 +151,12 @@ variable "enable_grafana" {
   default     = false
 }
 
+variable "cross_peer_scrape" {
+  description = "Each pool node's prometheus scrapes every peer (full per-pool replica). True (the default) suits standalone pools and lets mgmt federate one node per pool. Set false when the pool is attached to mgmt so each node scrapes only itself and mgmt scrapes every node directly (no node-selection SPOF)."
+  type        = bool
+  default     = true
+}
+
 # --- Provisioning -------------------------------------------------------------
 
 variable "provision_enabled" {
