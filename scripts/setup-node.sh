@@ -207,6 +207,9 @@ if [ "$IS_METRICS" = "True" ]; then
     systemctl restart prometheus
 else
     echo "Metrics are disabled"
+    # Ensure the services are off even on a prebaked AMI where they may have
+    # been enabled at bake time (the enable path above never ran here).
+    systemctl disable --now node_exporter prometheus || true
 fi
 
 
