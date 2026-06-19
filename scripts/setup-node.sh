@@ -69,12 +69,13 @@ if [ "$ROLE" = "mgmt" ]; then
     echo "MGX_ROLE=mgmt" >> /etc/mgx-env
 
     # Request logging: append every successful create/update/resize/delete/clear
-    # request to the requests_log table, scoped to the cache/storage/snapshot
-    # plugins. mgmt replays these entries onto the downstream pools (see
-    # mgx-plgn-mgmt).
+    # request to the requests_log table, scoped to the cache/storage/snapshot/
+    # scheduler plugins. mgmt replays these entries onto the downstream pools
+    # (see mgx-plgn-mgmt). scheduler node_drain/node_uncordon are included so
+    # node drain/uncordon operations replay downstream.
     echo 'MGX_REQUESTS_LOG="y"' >> /etc/mgx-env
-    echo 'MGX_REQUESTS_FILTER_PLUGIN="cache|storage|snapshot"' >> /etc/mgx-env
-    echo 'MGX_REQUESTS_FILTER_OP="_add|_create|_update|_resize|_start|_stop|_clean|_del"' >> /etc/mgx-env
+    echo 'MGX_REQUESTS_FILTER_PLUGIN="cache|storage|snapshot|scheduler"' >> /etc/mgx-env
+    echo 'MGX_REQUESTS_FILTER_OP="_add|_create|_update|_resize|_start|_stop|_clean|_del|_drain|_uncordon"' >> /etc/mgx-env
 fi
 
 # 5. Expose envs
