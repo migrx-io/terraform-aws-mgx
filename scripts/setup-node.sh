@@ -122,6 +122,22 @@ systemctl enable mgx-core
 systemctl enable mgx-gateway-api
 systemctl enable cron
 
+# Weekly Cassandra anti-entropy repair. `nodetool repair -pr` repairs only this
+# node's primary token ranges, so running it on every node covers the whole ring
+# exactly once per week with no redundant work. Repair must complete within
+# gc_grace_seconds (default 10 days) or deleted data can resurrect, so weekly
+# leaves a wide margin. JMX auth is not enabled (the cluster script runs
+# `nodetool status` without creds), so no credentials are needed. Stagger the
+# start hour by this node's 0-based position in the node list so nodes don't all
+# repair at once (same index logic as mgx-cassandra-cluster-deb.sh).
+REPAIR_INDEX=$(echo "${CASS_RPC_SEEDS}" | tr ',' '\n' | sed 's/:.*//' | grep -nxF "${CASS_RPC_ADDR}" | head -1 | cut -d: -f1)
+REPAIR_HOUR=$(( (2 + REPAIR_INDEX - 1) % 24 ))
+cat > /etc/cron.d/mgx-cassandra-repair <<EOF
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+17 ${REPAIR_HOUR} * * 0 root nodetool repair -pr >> /var/log/mgx-cassandra-repair.log 2>&1
+EOF
+chmod 0644 /etc/cron.d/mgx-cassandra-repair
+
 systemctl restart mgx-core
 systemctl restart mgx-gateway-api
 systemctl restart cron
