@@ -92,14 +92,6 @@ MY_INDEX=$((MY_INDEX - 1))
 # null can_login/is_superuser -> "Invalid metadata for role cassandra" NPE at
 # the very first login. Start the first seed alone; every other node waits until
 # the first seed has finished its auth bootstrap before it boots and joins.
-#
-# This staggering only applies to a FRESH cluster. On a re-provision the
-# default 'cassandra' login no longer works (its password was changed) and
-# system_auth is NetworkTopologyStrategy RF=3, so authenticating as CASS_USER
-# can't reach quorum while only the first seed is up. Waiting here would
-# deadlock: non-seeds won't start until the seed is "ready", the seed won't
-# see enough nodes until the non-seeds start. So skip the wait on re-provision
-# and let every node start immediately and re-form quorum.
 if [ "${CASS_RPC_ADDR}" != "${FIRST_SEED_IP}" ] && [ "${FRESH_BOOTSTRAP}" = "1" ]; then
     echo "Not first seed — waiting for first seed ${FIRST_SEED_IP} to finish auth bootstrap..."
     until cqlsh -u cassandra -p cassandra ${FIRST_SEED_IP} -e "SHOW HOST" >/dev/null 2>&1 \
@@ -109,21 +101,12 @@ if [ "${CASS_RPC_ADDR}" != "${FIRST_SEED_IP}" ] && [ "${FRESH_BOOTSTRAP}" = "1" 
     done
 
     # Stagger joins so nodes don't bootstrap at the same instant (which can split
-    # gossip). Instead of a fixed sleep, join only once the previous node has
-    # fully joined. A node at 0-based MY_INDEX should start once nodes
-    # 0..MY_INDEX-1 are up — i.e. once the cluster reports >= MY_INDEX UP nodes.
-    # nodetool status counts all UP (UN) nodes including the seed itself, so this
-    # waits for real join completion of the previous node, not a guessed delay.
-    echo "Waiting until node(s) are up before starting (node index ${MY_INDEX})..."
-    while true; do
-        cnt=$(nodetool status | grep '^UN' | wc -l)
-        if [ "$cnt" -ge "${MY_INDEX}" ]; then
-            echo "$cnt node(s) up (need ${MY_INDEX}) — starting."
-            break
-        fi
-        echo "Only $cnt node(s) up (need ${MY_INDEX}), waiting..."
-        sleep 5
-    done
+    # gossip). 
+    # index-based delay instead — node at 0-based MY_INDEX waits MY_INDEX*30s so
+    # nodes join one after another rather than all at once.
+    STAGGER_DELAY=$((MY_INDEX * 30))
+    echo "Staggering join: waiting ${STAGGER_DELAY}s before starting (node index ${MY_INDEX})..."
+    sleep "${STAGGER_DELAY}"
 fi
 
 systemctl enable cassandra
