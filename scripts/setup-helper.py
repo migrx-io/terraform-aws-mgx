@@ -239,6 +239,13 @@ def prometheus_federate():
         if not node_ips:
             continue
 
+        # The stock Node Exporter Full dashboard keys every panel off the
+        # 'instance' label, but each node scrapes its own node_exporter as
+        # localhost:9100 - so every node's series share instance=localhost:9100
+        # and collapse into one. In the per-node case below we tag each target
+        # with a distinct 'node' label and rewrite 'instance' from it, so nodes
+        # stay separable. The full-replica case keeps distinct instances already.
+        relabel = ""
         if pool.get("cross_peer_scrape", True):
             # Full replica: one node already has the whole pool's series.
             groups = """      - targets: ['{ip}:9090']
@@ -251,6 +258,10 @@ def prometheus_federate():
         labels:
           pool: '{name}'
           node: '{ip}'""".format(ip=ip, name=name) for ip in node_ips)
+            relabel = """
+    metric_relabel_configs:
+      - source_labels: [node]
+        target_label: instance"""
 
         blocks.append("""
   - job_name: 'federate-{name}'
@@ -260,7 +271,7 @@ def prometheus_federate():
       'match[]':
         - '{{job=~".+"}}'
     static_configs:
-{groups}""".format(name=name, groups=groups))
+{groups}{relabel}""".format(name=name, groups=groups, relabel=relabel))
 
     print("\n".join(blocks))
 
