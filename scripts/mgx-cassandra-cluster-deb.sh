@@ -109,10 +109,21 @@ if [ "${CASS_RPC_ADDR}" != "${FIRST_SEED_IP}" ] && [ "${FRESH_BOOTSTRAP}" = "1" 
     done
 
     # Stagger joins so nodes don't bootstrap at the same instant (which can split
-    # gossip). Each node waits MY_INDEX * 30s, so they join roughly one at a time.
-    STAGGER=$((MY_INDEX * 30))
-    echo "Staggering join by ${STAGGER}s (node index ${MY_INDEX})..."
-    sleep "${STAGGER}"
+    # gossip). Instead of a fixed sleep, join only once the previous node has
+    # fully joined. A node at 0-based MY_INDEX should start once nodes
+    # 0..MY_INDEX-1 are up — i.e. once the cluster reports >= MY_INDEX UP nodes.
+    # nodetool status counts all UP (UN) nodes including the seed itself, so this
+    # waits for real join completion of the previous node, not a guessed delay.
+    echo "Waiting until node(s) are up before starting (node index ${MY_INDEX})..."
+    while true; do
+        cnt=$(nodetool status | grep '^UN' | wc -l)
+        if [ "$cnt" -ge "${MY_INDEX}" ]; then
+            echo "$cnt node(s) up (need ${MY_INDEX}) — starting."
+            break
+        fi
+        echo "Only $cnt node(s) up (need ${MY_INDEX}), waiting..."
+        sleep 5
+    done
 fi
 
 systemctl enable cassandra
