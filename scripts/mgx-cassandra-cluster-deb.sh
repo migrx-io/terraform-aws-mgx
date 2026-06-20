@@ -160,3 +160,21 @@ if [ "${CASS_RPC_ADDR}" = "${FIRST_SEED_IP}" ]; then
 else
     echo "This is not the first seed (${CASS_RPC_ADDR}), skipping auth + replication setup."
 fi
+
+# Weekly Cassandra anti-entropy repair. `nodetool repair -pr` repairs only this
+# node's primary token ranges, so running it on every node covers the whole ring
+# exactly once per week with no redundant work. Repair must complete within
+# gc_grace_seconds (default 10 days) or deleted data can resurrect, so weekly
+# leaves a wide margin. JMX auth is not enabled (this script runs `nodetool
+# status` without creds), so no credentials are needed. Stagger the start hour by
+# this node's 0-based position in the node list (MY_INDEX) so nodes don't all
+# repair at once.
+REPAIR_HOUR=$(( (2 + MY_INDEX) % 24 ))
+cat > /etc/cron.d/mgx-cassandra-repair <<EOF
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+17 ${REPAIR_HOUR} * * 0 root nodetool repair -pr >> /var/log/mgx-cassandra-repair.log 2>&1
+EOF
+chmod 0644 /etc/cron.d/mgx-cassandra-repair
+
+systemctl enable cron
+systemctl restart cron
