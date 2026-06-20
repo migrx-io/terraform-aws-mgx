@@ -69,11 +69,22 @@ sed -i "s/listen_address:.*/listen_address: ${CASS_RPC_ADDR}/g" /etc/cassandra/c
 sed -i "s/rpc_address:.*/rpc_address: ${CASS_RPC_ADDR}/g" /etc/cassandra/cassandra.yaml
 sed -i "s/127.0.0.1:7000/${CASS_RPC_ADDR}:7000/g" /etc/cassandra/cassandra.yaml
 sed -i "s/127.0.0.1:7000/${CASS_RPC_ADDR}:7000/g" /etc/cassandra/cassandra.yaml
-sed -i "s/^\(\s*-\s*seeds:\s*\).*/\1\"${CASS_RPC_SEEDS}\"/" /etc/cassandra/cassandra.yaml
+
+# CASS_RPC_SEEDS is the full node list (also used for metrics scrape targets and
+# the stagger index below). Cassandra itself should only seed off the first two
+# nodes: making every node a seed means no node auto-bootstraps and several
+# seeds starting at once can split gossip, leaving a node invisible cluster-wide.
+CASS_SEEDS=$(echo "${CASS_RPC_SEEDS}" | cut -d',' -f1-2)
+sed -i "s/^\(\s*-\s*seeds:\s*\).*/\1\"${CASS_SEEDS}\"/" /etc/cassandra/cassandra.yaml
 
 FIRST_SEED=$(echo "${CASS_RPC_SEEDS}" | cut -d',' -f1)
 FIRST_SEED_IP="${FIRST_SEED%%:*}"
 TARGET=${CASS_NODES_COUNT}
+
+# This node's 0-based position in the full node list, used to stagger fresh
+# joins so nodes don't bootstrap simultaneously.
+MY_INDEX=$(echo "${CASS_RPC_SEEDS}" | tr ',' '\n' | sed 's/:.*//' | grep -nxF "${CASS_RPC_ADDR}" | head -1 | cut -d: -f1)
+MY_INDEX=$((MY_INDEX - 1))
 
 # The default 'cassandra' superuser is auto-created the first time a node starts
 # with PasswordAuthenticator. If several nodes do that at once (system_auth is
@@ -96,6 +107,12 @@ if [ "${CASS_RPC_ADDR}" != "${FIRST_SEED_IP}" ] && [ "${FRESH_BOOTSTRAP}" = "1" 
         echo "First seed auth not ready yet, waiting..."
         sleep 5
     done
+
+    # Stagger joins so nodes don't bootstrap at the same instant (which can split
+    # gossip). Each node waits MY_INDEX * 60s, so they join roughly one at a time.
+    STAGGER=$((MY_INDEX * 60))
+    echo "Staggering join by ${STAGGER}s (node index ${MY_INDEX})..."
+    sleep "${STAGGER}"
 fi
 
 systemctl enable cassandra
