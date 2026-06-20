@@ -109,8 +109,8 @@ if [ "${CASS_RPC_ADDR}" != "${FIRST_SEED_IP}" ] && [ "${FRESH_BOOTSTRAP}" = "1" 
     done
 
     # Stagger joins so nodes don't bootstrap at the same instant (which can split
-    # gossip). Each node waits MY_INDEX * 60s, so they join roughly one at a time.
-    STAGGER=$((MY_INDEX * 60))
+    # gossip). Each node waits MY_INDEX * 30s, so they join roughly one at a time.
+    STAGGER=$((MY_INDEX * 30))
     echo "Staggering join by ${STAGGER}s (node index ${MY_INDEX})..."
     sleep "${STAGGER}"
 fi
