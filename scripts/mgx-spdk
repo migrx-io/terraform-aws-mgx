@@ -9,6 +9,16 @@ MGX_S3BACKER_NBD_MAX_SEC_KB="1024"
 MGX_CGROUP_MAX="2000M"
 MGX_CGROUP_HIGH="1200M"
 MGX_CGROUP_LOW="1000M"
+# per-size cgroup tiers, used to override MGX_CGROUP_MAX/HIGH/LOW for large volumes.
+# format: "<min_tb>,<low>,<high>,<max>;<min_tb>,<low>,<high>,<max>;..."
+# on start the volume size (from --size=<n>M) is converted to TB; the highest tier
+# whose <min_tb> the size reaches wins and its values overwrite the defaults above.
+# volumes below the smallest tier keep the defaults. leave empty to disable.
+# 1-16TB split into 3 ranges (1-6 / 6-11 / 11-16):
+#   >=1TB  -> low=1000M high=1200M max=2000M
+#   >=6TB  -> low=2000M high=2200M max=3000M
+#   >=11TB -> low=3000M high=3200M max=4000M
+MGX_CGROUP_TB_THRESHHOLDS="1,1000M,1200M,2000M;6,2000M,2200M,3000M;11,3000M,3200M,4000M"
 MGX_S3BACKER_WAIT_SEC=2
 MGX_S3BACKER_ARGS="\
     --nbd \
