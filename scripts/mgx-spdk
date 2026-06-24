@@ -53,6 +53,5 @@ MGX_S3BACKER_ARGS="\
     --cacheReadFile=<rdiskpath>/<volume>/data \
     --statsFileMirror=<rwdiskpath>/<volume>/stats \
     --statsFileMirrorInterval=1000 \
-    --debug \
     --directIO \
     --timeout=30"
