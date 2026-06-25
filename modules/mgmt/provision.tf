@@ -1,7 +1,7 @@
 # Discover downstream storage pools from SSM (each pool stack publishes
-# /mgx/<cluster>/pools/<pool> = {node_ips, descr, labels}). This replaces the
-# old baked-in pools map, so adding/removing a pool does not require editing or
-# re-planning the mgmt stack — at most a cheap re-register run (see note below).
+# /mgx/<cluster>/pools/<pool> = {node_ips, descr, labels}). Adding/removing a
+# pool does not require editing or re-planning the mgmt stack — at most a cheap
+# re-register run (see note below).
 data "aws_ssm_parameters_by_path" "pools" {
   path      = "/mgx/${var.cluster}/pools/"
   recursive = true
@@ -50,21 +50,20 @@ module "provision" {
   source   = "../provision"
   for_each = var.provision_enabled ? aws_instance.mgmt_node : {}
 
-  provision_mode = var.provision_mode
-  prebaked       = var.prebaked
-  role           = "mgmt"
+  provision_mode   = var.provision_mode
+  role             = "mgmt"
+  node_scripts_dir = var.node_scripts_dir
+  provision_dir    = var.provision_dir
 
   # ssh
   host                 = each.value.private_ip
   ssh_user             = var.ssh_user
   ssh_private_key_path = var.ssh_private_key_path
   bastion_host         = var.network.bastion_public_ip
-  scripts_path         = var.scripts_path
   secrets_file_path    = var.secrets_file_path
 
   # ssm
   instance_id      = each.value.id
-  scripts_url      = var.scripts_url
   secrets_ssm_path = var.secrets_ssm_path
 
   files = {

@@ -17,13 +17,20 @@ modules/
   network/     mgmt/     pool/     provision/
 examples/
   network/     mgmt/     pool/        # runnable reference roots
-scripts/                              # node bootstrap (setup-node.sh, helpers, manifests)
+secrets.env.example                   # node secrets template (copy per stack)
 ```
 
 You deploy the foundation once, then one `pool` stack per storage pool, plus the
 `mgmt` stack. Pools register their node addresses in SSM under
 `/mgx/<cluster>/pools/`; the management stack reads that path to build its pool
 registry and metrics federation.
+
+Nodes boot from a **prebaked mgx AMI** built by [`mgx-packer`](../mgx-packer):
+every package and the node scripts (`setup-node.sh`, helpers, manifests) are
+baked into the image. Provisioning delivers the per-node dynamic inputs
+(`secrets.env`, ip lists, `pool_info.json`) and runs the baked
+`setup-node.sh <role>` in place to configure the node. Set `nodes_ami` to a
+mgx-packer AMI.
 
 ## Requirements
 
@@ -32,8 +39,9 @@ registry and metrics federation.
 - An existing VPC and a public subnet (for the NAT gateway and bastion)
 - A remote state backend (e.g. S3) shared by all stacks, so the `pool` and
   `mgmt` stacks can read the `network` stack's outputs
+- A prebaked mgx AMI (built by [`mgx-packer`](../mgx-packer)) for `nodes_ami`
 - For `ssh` provisioning: an SSH key pair and a `secrets.env` file
-  (see [`scripts/secrets.env.example`](scripts/secrets.env.example))
+  (see [`secrets.env.example`](secrets.env.example))
 
 ## Setup
 
@@ -49,11 +57,11 @@ git-ignored — copy the template into each stack dir and fill it in:
 
 ```bash
 cd examples/pool        # or examples/mgmt
-cp ../../scripts/secrets.env.example secrets.env
+cp ../../secrets.env.example secrets.env
 # edit secrets.env (see keys below)
 ```
 
-Keys (uploaded to each node, merged over `scripts/mgx-env`, secrets win):
+Keys (delivered to each node, merged over the baked `mgx-env`, secrets win):
 
 | Key | Description |
 |-----|-------------|
@@ -140,16 +148,23 @@ sizes; how they map to capacity depends on `raid_level`:
 
 ## Provisioning modes
 
-Set `provision_mode` on the `pool` and `mgmt` modules:
+The node scripts are baked into `nodes_ami` (see [`mgx-packer`](../mgx-packer)).
+In both modes provisioning only delivers the per-node dynamic files
+(`secrets.env`, ip lists, `pool_info.json`) into `provision_dir`
+(default `/tmp/mgx-provision`) and runs the baked
+`<node_scripts_dir>/setup-node.sh <role>` (default `/opt/mgx/scripts`). Set
+`provision_mode` on the `pool` and `mgmt` modules:
 
-- **`ssh`** (default) — Terraform connects through the bastion, uploads the local
-  `scripts/` directory and `secrets.env`, and runs `setup-node.sh`. Required
-  inputs: `scripts_path`, `secrets_file_path`, `ssh_user`, `ssh_private_key_path`.
-- **`ssm`** — agentless, no bastion. Nodes pull a scripts tarball from
-  `scripts_url`, read `secrets.env` from an SSM SecureString (`secrets_ssm_path`),
-  and run via SSM Run Command. The modules attach `AmazonSSMManagedInstanceCore`
-  to the node role automatically. Required inputs: `scripts_url`,
-  `secrets_ssm_path`.
+- **`ssh`** (default) — Terraform connects through the bastion, uploads
+  `secrets.env` + the dynamic files, and runs the baked `setup-node.sh`. Required
+  inputs: `secrets_file_path`, `ssh_user`, `ssh_private_key_path`.
+- **`ssm`** — agentless, no bastion. SSM Run Command writes the dynamic files
+  (reading `secrets.env` from an SSM SecureString, `secrets_ssm_path`) and runs
+  the baked `setup-node.sh`. The modules attach `AmazonSSMManagedInstanceCore` to
+  the node role automatically. Required input: `secrets_ssm_path`.
+
+`node_scripts_dir` must match the path the `mgx-packer` build installed the
+scripts to (both default to `/opt/mgx/scripts`).
 
 ## Operations
 

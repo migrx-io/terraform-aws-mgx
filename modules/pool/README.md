@@ -51,7 +51,7 @@ module "pool" {
   s3_force_destroy       = true
   enable_metrics         = true
 
-  scripts_path = "${path.module}/../../scripts"
+  # nodes_ami must be a prebaked mgx AMI (built by mgx-packer).
   # secrets_file_path defaults to ./secrets.env (the dir terraform runs from)
 }
 ```
@@ -63,7 +63,7 @@ directory terraform runs from. It is shared by every node (mgmt + storage) and
 git-ignored — create it from the template before applying:
 
 ```bash
-cp ../../scripts/secrets.env.example secrets.env
+cp ../../secrets.env.example secrets.env
 ```
 
 Keys: `CASS_USER`, `CASS_PASSWD`, `MGX_GW_X_API_KEY`, `MGX_X_API_KEY`,
@@ -86,7 +86,8 @@ descriptions).
 | `s3_bucket_names` / `s3_backup_bucket_names` / `s3_bucket_access_names` | `list(string)` | Owned + shared buckets. |
 | `enable_metrics` / `enable_grafana` | `bool` | Observability. |
 | `provision_enabled` | `bool` | Toggle SSH provisioning (false = infra only). |
-| `scripts_path` / `secrets_file_path` | `string` | Provisioning inputs. |
+| `node_scripts_dir` / `provision_dir` | `string` | Baked scripts dir / dynamic-files dir on the node. |
+| `secrets_file_path` | `string` | Local `secrets.env` (ssh mode). |
 | `ssh_user` / `ssh_private_key_path` | `string` | SSH access via the bastion. |
 
 ## Outputs

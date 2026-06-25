@@ -1,7 +1,0 @@
-MGX_TGT_TYPE="nvmf_tgt"
-MGX_SPDK_NOHUGE="n"
-MGX_HUGEPAGE_SIZE="4096"
-MGX_CPUMASK="0x3"
-MGX_MAINCORE="0"
-MGX_SOCKET="/var/tmp/spdk_cache.sock"
-MGX_UNIX_SOCK_USER="mgx-core"

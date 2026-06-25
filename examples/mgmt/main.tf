@@ -35,10 +35,10 @@ module "mgmt" {
   enable_metrics      = true
   enable_grafana      = true
 
-  # provisioning (ssh / bastion mode)
-  scripts_path = "${path.module}/../../scripts"
+  # provisioning (ssh / bastion mode). nodes_ami must be a prebaked mgx AMI
+  # (built by mgx-packer): provisioning runs the baked setup-node.sh in place.
   # secrets_file_path defaults to ./secrets.env (this dir). Create it first:
-  #   cp ../../scripts/secrets.env.example secrets.env
+  #   cp ../../secrets.env.example secrets.env
 }
 
 output "node_private_ips" { value = module.mgmt.node_private_ips }

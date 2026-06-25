@@ -176,16 +176,16 @@ variable "provision_mode" {
   }
 }
 
-variable "prebaked" {
-  description = "AMI flavour: false (clean Ubuntu, install all packages then configure) or true (packages/scripts already baked into nodes_ami, configure only)."
-  type        = bool
-  default     = false
+variable "node_scripts_dir" {
+  description = "Where the prebaked runtime scripts live inside nodes_ami (built by mgx-packer). setup-node.sh is run from here. Must match node_scripts_dir in the mgx-packer build."
+  type        = string
+  default     = "/opt/mgx/scripts"
 }
 
-variable "scripts_path" {
-  description = "[ssh] Local path to the node bootstrap scripts directory."
+variable "provision_dir" {
+  description = "Writable dir on the node where per-node dynamic files (secrets.env, ip lists, pool_info.json) are staged and read via MGX_PROVISION_DIR."
   type        = string
-  default     = ""
+  default     = "/tmp/mgx-provision"
 }
 
 variable "secrets_file_path" {
@@ -204,12 +204,6 @@ variable "ssh_private_key_path" {
   description = "[ssh] Path to the SSH private key used to reach nodes via the bastion."
   type        = string
   default     = "~/.ssh/id_rsa"
-}
-
-variable "scripts_url" {
-  description = "[ssm] HTTPS URL of a gzipped tarball of the scripts directory, pulled on the node."
-  type        = string
-  default     = ""
 }
 
 variable "secrets_ssm_path" {

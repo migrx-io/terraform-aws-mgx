@@ -1,13 +1,15 @@
-# Provisions a single node by running scripts/setup-node.sh <role> on it, after
-# staging the bootstrap scripts + secrets.env + dynamic files (ip lists,
-# pool_info.json) under /tmp/mgx-scripts/.
+# Configures a single node by running the prebaked setup-node.sh <role> that
+# already lives in the AMI (built by mgx-packer). Nothing is uploaded except the
+# per-node dynamic inputs that cannot be baked: secrets.env + the ip lists +
+# pool_info.json, staged under provision_dir. setup-node.sh reads them via
+# MGX_PROVISION_DIR and installs nothing - it only configures the node.
 #
 # Two transports, selected by provision_mode:
-#   ssh (default) - connect through the bastion and push files + run remotely.
-#   ssm           - agentless: SSM Run Command pulls the scripts from scripts_url,
-#                   reads secrets from SSM, writes the dynamic files, runs setup.
-#                   No bastion required; the instance needs the SSM agent + the
-#                   AmazonSSMManagedInstanceCore policy (attached by the caller).
+#   ssh (default) - connect through the bastion, push the dynamic files, run.
+#   ssm           - agentless: SSM Run Command writes the dynamic files (secrets
+#                   from SSM) and runs setup-node.sh. No bastion required; the
+#                   instance needs the SSM agent + AmazonSSMManagedInstanceCore
+#                   (attached by the caller).
 
 locals {
   is_ssh = var.provision_mode == "ssh"
@@ -15,29 +17,29 @@ locals {
 
   bastion_user = var.bastion_user != "" ? var.bastion_user : var.ssh_user
 
-  # One heredoc per dynamic file, written into /tmp/mgx-scripts/ (the parent of
-  # the scripts dir, where setup-helper.py expects ../<file>). Shared by both modes.
+  # Use `sudo env VAR=...` rather than `sudo VAR=...`: sudo's default env policy
+  # strips unknown variables set the latter way, but an explicit `env` assignment
+  # always applies.
+  setup_cmd = "sudo env MGX_PROVISION_DIR='${var.provision_dir}' '${var.node_scripts_dir}/setup-node.sh' ${var.role}"
+
+  # One heredoc per dynamic file, written into provision_dir. Shared by both modes.
   write_files_cmds = [
     for fname, content in var.files :
-    "cat > /tmp/mgx-scripts/${fname} <<'MGXEOF'\n${content}\nMGXEOF"
+    "cat > ${var.provision_dir}/${fname} <<'MGXEOF'\n${content}\nMGXEOF"
   ]
 
   # Commands run on the node in ssm mode.
   ssm_commands = concat(
     [
       "set -euo pipefail",
-      "mkdir -p /tmp/mgx-scripts/scripts",
-      "curl -fsSL '${var.scripts_url}' -o /tmp/mgx-scripts/scripts.tgz",
-      "tar -xzf /tmp/mgx-scripts/scripts.tgz -C /tmp/mgx-scripts/scripts --strip-components=1",
+      "mkdir -p '${var.provision_dir}'",
     ],
     var.secrets_ssm_path != "" ? [
-      "aws ssm get-parameter --with-decryption --name '${var.secrets_ssm_path}' --query Parameter.Value --output text > /tmp/mgx-scripts/secrets.env",
+      "aws ssm get-parameter --with-decryption --name '${var.secrets_ssm_path}' --query Parameter.Value --output text > ${var.provision_dir}/secrets.env",
     ] : [],
     local.write_files_cmds,
     [
-      "cd /tmp/mgx-scripts/scripts",
-      "chmod +x setup-node.sh",
-      "sudo ./setup-node.sh ${var.role} ${var.prebaked}",
+      local.setup_cmd,
     ],
   )
 }
@@ -45,12 +47,12 @@ locals {
 resource "terraform_data" "validate" {
   lifecycle {
     precondition {
-      condition     = !local.is_ssh || (var.host != "" && var.ssh_private_key_path != "" && var.bastion_host != "" && var.scripts_path != "")
-      error_message = "ssh mode requires host, ssh_private_key_path, bastion_host and scripts_path."
+      condition     = !local.is_ssh || (var.host != "" && var.ssh_private_key_path != "" && var.bastion_host != "")
+      error_message = "ssh mode requires host, ssh_private_key_path and bastion_host."
     }
     precondition {
-      condition     = !local.is_ssm || (var.instance_id != "" && var.scripts_url != "")
-      error_message = "ssm mode requires instance_id and scripts_url."
+      condition     = !local.is_ssm || var.instance_id != ""
+      error_message = "ssm mode requires instance_id."
     }
   }
 }
@@ -74,19 +76,14 @@ resource "terraform_data" "node" {
   }
 
   provisioner "remote-exec" {
-    inline = ["mkdir -p /tmp/mgx-scripts/scripts"]
+    inline = ["mkdir -p '${var.provision_dir}'"]
   }
 
-  # Trailing slash => upload the *contents* of scripts_path, so the on-node path
-  # is deterministic regardless of the local directory name.
-  provisioner "file" {
-    source      = "${var.scripts_path}/"
-    destination = "/tmp/mgx-scripts/scripts"
-  }
-
+  # secrets.env is the only file uploaded from disk; the rest are dynamic
+  # terraform-rendered content written by the heredocs below.
   provisioner "file" {
     source      = var.secrets_file_path
-    destination = "/tmp/mgx-scripts/secrets.env"
+    destination = "${var.provision_dir}/secrets.env"
   }
 
   provisioner "remote-exec" {
@@ -94,11 +91,7 @@ resource "terraform_data" "node" {
   }
 
   provisioner "remote-exec" {
-    inline = [
-      "cd /tmp/mgx-scripts/scripts",
-      "chmod +x setup-node.sh",
-      "sudo ./setup-node.sh ${var.role} ${var.prebaked}",
-    ]
+    inline = [local.setup_cmd]
   }
 }
 

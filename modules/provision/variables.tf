@@ -19,14 +19,20 @@ variable "role" {
   }
 }
 
-variable "prebaked" {
-  description = "AMI flavour passed to setup-node.sh as its 2nd arg: false (clean Ubuntu, install all packages then configure) or true (packages/scripts already baked, configure only)."
-  type        = bool
-  default     = false
+variable "node_scripts_dir" {
+  description = "Where the prebaked runtime scripts live inside the AMI (built by mgx-packer). setup-node.sh is run from here. Must match node_scripts_dir in the mgx-packer build."
+  type        = string
+  default     = "/opt/mgx/scripts"
+}
+
+variable "provision_dir" {
+  description = "Writable dir on the node where the per-node dynamic files (secrets.env, ip lists, pool_info.json) are staged and read via MGX_PROVISION_DIR."
+  type        = string
+  default     = "/tmp/mgx-provision"
 }
 
 variable "files" {
-  description = "Extra files (filename => content) written into /tmp/mgx-scripts/ before setup runs (e.g. pool_info.json, *_ips.txt)."
+  description = "Extra files (filename => content) written into provision_dir before setup runs (e.g. pool_info.json, *_ips.txt)."
   type        = map(string)
   default     = {}
 }
@@ -69,14 +75,8 @@ variable "bastion_user" {
   default     = ""
 }
 
-variable "scripts_path" {
-  description = "[ssh] Local path to the node bootstrap scripts directory (uploaded to the node)."
-  type        = string
-  default     = ""
-}
-
 variable "secrets_file_path" {
-  description = "[ssh] Local path to the secrets.env file uploaded as /tmp/mgx-scripts/secrets.env. Relative paths resolve against the directory terraform runs from."
+  description = "[ssh] Local path to the secrets.env file uploaded as <provision_dir>/secrets.env. Relative paths resolve against the directory terraform runs from."
   type        = string
   default     = "secrets.env"
 }
@@ -85,12 +85,6 @@ variable "secrets_file_path" {
 
 variable "instance_id" {
   description = "[ssm] EC2 instance id to target with SSM Run Command."
-  type        = string
-  default     = ""
-}
-
-variable "scripts_url" {
-  description = "[ssm] HTTPS URL of a gzipped tarball of the scripts directory, downloaded on the node."
   type        = string
   default     = ""
 }

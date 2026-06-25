@@ -9,11 +9,10 @@ Creates:
 - one ENI + EC2 instance per mgmt node (single mgmt-subnet interface, no IAM profile)
 - node provisioning via [`modules/provision`](../provision) with `role = mgmt`
 
-## Pool discovery (no baked-in pool list)
+## Pool discovery
 
 The mgmt nodes need each storage pool's node IPs (for the pool registry and
-Prometheus federation). Instead of receiving them as a Terraform variable, this
-module **discovers** them at plan time from SSM:
+Prometheus federation). This module **discovers** them at plan time from SSM:
 
 ```
 data "aws_ssm_parameters_by_path" "/mgx/<cluster>/pools/"
@@ -50,7 +49,7 @@ module "mgmt" {
   nodes_count         = 3
   enable_metrics      = true
 
-  scripts_path = "${path.module}/../../scripts"
+  # nodes_ami must be a prebaked mgx AMI (built by mgx-packer).
   # secrets_file_path defaults to ./secrets.env (the dir terraform runs from)
 }
 ```
@@ -62,7 +61,7 @@ directory terraform runs from. It is shared by every node (mgmt + storage) and
 git-ignored — create it from the template before applying:
 
 ```bash
-cp ../../scripts/secrets.env.example secrets.env
+cp ../../secrets.env.example secrets.env
 ```
 
 Keys: `CASS_USER`, `CASS_PASSWD`, `MGX_GW_X_API_KEY`, `MGX_X_API_KEY`,
@@ -80,7 +79,8 @@ descriptions).
 | `enable_metrics` / `enable_grafana` | `bool` | Observability / federation. |
 | `pull_http_timeout` / `push_http_timeout` | `number` | mgmt manifest tuning. |
 | `provision_enabled` | `bool` | Toggle SSH provisioning. |
-| `scripts_path` / `secrets_file_path` | `string` | Provisioning inputs. |
+| `node_scripts_dir` / `provision_dir` | `string` | Baked scripts dir / dynamic-files dir on the node. |
+| `secrets_file_path` | `string` | Local `secrets.env` (ssh mode). |
 | `ssh_user` / `ssh_private_key_path` | `string` | SSH access via the bastion. |
 
 ## Outputs
