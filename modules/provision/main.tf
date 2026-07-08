@@ -31,6 +31,9 @@ locals {
   # Commands run on the node in ssm mode.
   ssm_commands = concat(
     [
+      # AWS-RunShellScript executes under /bin/sh (dash on Ubuntu), which lacks
+      # `pipefail`. Re-exec under bash so the strict-mode line below is valid.
+      "[ -n \"$${BASH_VERSION:-}\" ] || exec bash \"$0\" \"$@\"",
       "set -euo pipefail",
       "mkdir -p '${var.provision_dir}'",
     ],
