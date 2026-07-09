@@ -43,7 +43,9 @@ locals {
       # Install once via snap if missing; the binary lands in /snap/bin.
       "export PATH=\"$PATH:/snap/bin\"",
       "command -v aws >/dev/null 2>&1 || snap install aws-cli --classic",
-      "aws ssm get-parameter --with-decryption --name '${var.secrets_ssm_path}' --query Parameter.Value --output text > ${var.provision_dir}/secrets.env",
+      # Pipe through `cat`: the snap CLI build throws "'NoneType' object has no
+      # attribute 'flush'" when its stdout is a plain file, but is fine on a pipe.
+      "aws ssm get-parameter --with-decryption --name '${var.secrets_ssm_path}' --query Parameter.Value --output text | cat > ${var.provision_dir}/secrets.env",
     ] : [],
     local.write_files_cmds,
     [
