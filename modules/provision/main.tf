@@ -38,6 +38,11 @@ locals {
       "mkdir -p '${var.provision_dir}'",
     ],
     var.secrets_ssm_path != "" ? [
+      # The prebaked AMI is Ubuntu and ships no AWS CLI, but ssm mode needs it to
+      # pull the SecureString secret (Run Command can't resolve {{ssm-secure}}).
+      # Install once via snap if missing; the binary lands in /snap/bin.
+      "export PATH=\"$PATH:/snap/bin\"",
+      "command -v aws >/dev/null 2>&1 || snap install aws-cli --classic",
       "aws ssm get-parameter --with-decryption --name '${var.secrets_ssm_path}' --query Parameter.Value --output text > ${var.provision_dir}/secrets.env",
     ] : [],
     local.write_files_cmds,
