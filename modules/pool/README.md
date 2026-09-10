@@ -83,12 +83,39 @@ descriptions).
 | `ebs_volumes` | `list(object)` | Per-node EBS cache volumes (raid_level 0). |
 | `nvme_node_disks_count` / `max_volumes_count` | `number` | Cache/volume sizing. |
 | `r_cache_size_in_mib` / `rw_cache_size_in_mib` | `number` | Per-disk cache sizes. |
+| `cache_flush_*` / `cache_fill_threshold` | `number` | nbd write-back cache filter tuning (see below). |
+| `block_cache_size` / `block_cache_threads` / `block_cache_flush_threads` | `number` | Block cache tuning (see below). |
 | `s3_bucket_names` / `s3_backup_bucket_names` / `s3_bucket_access_names` | `list(string)` | Owned + shared buckets. |
 | `enable_metrics` / `enable_grafana` | `bool` | Observability. |
 | `provision_enabled` | `bool` | Toggle SSH provisioning (false = infra only). |
 | `node_scripts_dir` / `provision_dir` | `string` | Baked scripts dir / dynamic-files dir on the node. |
 | `secrets_file_path` | `string` | Local `secrets.env` (ssh mode). |
 | `ssh_user` / `ssh_private_key_path` | `string` | SSH access via the bastion. |
+
+## Write-back cache tuning
+
+These knobs are rendered into `/etc/mgx-spdk` on every node of the pool, so they
+apply to every volume the pool serves — the same way `region` and the pool name
+are. Defaults match what the node image ships with, so leaving them unset
+changes nothing.
+
+| Name | Default | Flag |
+|------|---------|------------------------|
+| `cache_flush_threads` | `20` | `--nbd-param=cache-flush-threads` |
+| `cache_flush_interval` | `1000` | `--nbd-param=cache-flush-interval` |
+| `cache_flush_blocks` | `5` | `--nbd-param=cache-flush-blocks` |
+| `cache_flush_max_age` | `3000` | `--nbd-param=cache-flush-max-age` |
+| `cache_fill_threshold` | `60` | `--nbd-param=cache-fill-threshold` |
+| `block_cache_flush_threads` | `30` | `--cacheFlushThreads` |
+| `block_cache_size` | `300` | `--blockCacheSize` |
+| `block_cache_threads` | `30` | `--blockCacheThreads` |
+
+`block_cache_size` is a block count, but `--blockSize` is fixed at `1M`, so it
+reads directly as MiB.
+
+Changing any of them re-provisions the nodes (the value is part of the
+`pool_info.json` hash). Running volumes keep their current settings until their
+next start.
 
 ## Outputs
 

@@ -31,6 +31,16 @@ locals {
     enable_grafana         = var.enable_grafana
     cross_peer_scrape      = var.cross_peer_scrape
     ebs_volumes            = var.ebs_volumes
+
+    # mgx-spdk tunables (setup-helper.py renders these into /etc/mgx-spdk).
+    cache_flush_threads       = var.cache_flush_threads
+    cache_flush_interval      = var.cache_flush_interval
+    cache_flush_blocks        = var.cache_flush_blocks
+    cache_flush_max_age       = var.cache_flush_max_age
+    cache_fill_threshold      = var.cache_fill_threshold
+    block_cache_flush_threads = var.block_cache_flush_threads
+    block_cache_size          = var.block_cache_size
+    block_cache_threads       = var.block_cache_threads
   }
 
   pool_info_json = jsonencode({

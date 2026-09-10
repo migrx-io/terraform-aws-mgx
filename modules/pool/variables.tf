@@ -111,6 +111,59 @@ variable "ebs_volumes" {
   default = []
 }
 
+# --- write-back cache tuning --------------------------------------------------
+# Rendered into /etc/mgx-spdk on every node of the pool, so they apply to every
+# volume the pool serves. Changing one re-provisions the nodes; running volumes
+# pick it up on their next start.
+
+variable "cache_flush_threads" {
+  description = "nbd cache filter: threads flushing dirty cache blocks to the backing store (--nbd-param=cache-flush-threads)."
+  type        = number
+  default     = 20
+}
+
+variable "cache_flush_interval" {
+  description = "nbd cache filter: milliseconds between flush passes (--nbd-param=cache-flush-interval)."
+  type        = number
+  default     = 1000
+}
+
+variable "cache_flush_blocks" {
+  description = "nbd cache filter: dirty blocks a single flush pass submits per thread (--nbd-param=cache-flush-blocks)."
+  type        = number
+  default     = 5
+}
+
+variable "cache_flush_max_age" {
+  description = "nbd cache filter: milliseconds a dirty block may sit unflushed before it is forced out (--nbd-param=cache-flush-max-age)."
+  type        = number
+  default     = 3000
+}
+
+variable "cache_fill_threshold" {
+  description = "nbd cache filter: cache fill percentage above which reads stop being cached on read (--nbd-param=cache-fill-threshold)."
+  type        = number
+  default     = 60
+}
+
+variable "block_cache_flush_threads" {
+  description = "Block cache: flush thread pool size (--cacheFlushThreads)."
+  type        = number
+  default     = 30
+}
+
+variable "block_cache_size" {
+  description = "Block cache: in-memory size in MiB (--blockCacheSize)."
+  type        = number
+  default     = 300
+}
+
+variable "block_cache_threads" {
+  description = "Block cache: write-back thread pool size (--blockCacheThreads)."
+  type        = number
+  default     = 30
+}
+
 # --- S3 -----------------------------------------------------------------------
 
 variable "s3_bucket_names" {
