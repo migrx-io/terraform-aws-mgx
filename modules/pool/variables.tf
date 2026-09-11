@@ -143,7 +143,7 @@ variable "cache_flush_max_age" {
 variable "cache_fill_threshold" {
   description = "nbd cache filter: cache fill percentage above which reads stop being cached on read (--nbd-param=cache-fill-threshold)."
   type        = number
-  default     = 60
+  default     = 100
 }
 
 variable "block_cache_flush_threads" {
