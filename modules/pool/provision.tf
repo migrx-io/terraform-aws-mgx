@@ -39,6 +39,7 @@ locals {
     cache_flush_max_age       = var.cache_flush_max_age
     cache_fill_threshold      = var.cache_fill_threshold
     block_cache_flush_threads = var.block_cache_flush_threads
+    block_read_threads        = var.block_read_threads
     block_cache_size          = var.block_cache_size
     block_cache_threads       = var.block_cache_threads
   }

@@ -119,13 +119,13 @@ variable "ebs_volumes" {
 variable "cache_flush_threads" {
   description = "nbd cache filter: threads flushing dirty cache blocks to the backing store (--nbd-param=cache-flush-threads)."
   type        = number
-  default     = 20
+  default     = 10
 }
 
 variable "cache_flush_interval" {
   description = "nbd cache filter: milliseconds between flush passes (--nbd-param=cache-flush-interval)."
   type        = number
-  default     = 1000
+  default     = 300
 }
 
 variable "cache_flush_blocks" {
@@ -150,6 +150,12 @@ variable "block_cache_flush_threads" {
   description = "Block cache: flush thread pool size (--cacheFlushThreads)."
   type        = number
   default     = 30
+}
+
+variable "block_read_threads" {
+  description = "Block cache: read thread pool size (--blockReadThreads)."
+  type        = number
+  default     = 32
 }
 
 variable "block_cache_size" {

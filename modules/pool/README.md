@@ -84,7 +84,7 @@ descriptions).
 | `nvme_node_disks_count` / `max_volumes_count` | `number` | Cache/volume sizing. |
 | `r_cache_size_in_mib` / `rw_cache_size_in_mib` | `number` | Per-disk cache sizes. |
 | `cache_flush_*` / `cache_fill_threshold` | `number` | nbd write-back cache filter tuning (see below). |
-| `block_cache_size` / `block_cache_threads` / `block_cache_flush_threads` | `number` | Block cache tuning (see below). |
+| `block_cache_size` / `block_cache_threads` / `block_cache_flush_threads` / `block_read_threads` | `number` | Block cache tuning (see below). |
 | `s3_bucket_names` / `s3_backup_bucket_names` / `s3_bucket_access_names` | `list(string)` | Owned + shared buckets. |
 | `enable_metrics` / `enable_grafana` | `bool` | Observability. |
 | `provision_enabled` | `bool` | Toggle SSH provisioning (false = infra only). |
@@ -101,12 +101,13 @@ changes nothing.
 
 | Name | Default | Flag |
 |------|---------|------------------------|
-| `cache_flush_threads` | `20` | `--nbd-param=cache-flush-threads` |
-| `cache_flush_interval` | `1000` | `--nbd-param=cache-flush-interval` |
+| `cache_flush_threads` | `10` | `--nbd-param=cache-flush-threads` |
+| `cache_flush_interval` | `300` | `--nbd-param=cache-flush-interval` |
 | `cache_flush_blocks` | `5` | `--nbd-param=cache-flush-blocks` |
 | `cache_flush_max_age` | `3000` | `--nbd-param=cache-flush-max-age` |
-| `cache_fill_threshold` | `60` | `--nbd-param=cache-fill-threshold` |
+| `cache_fill_threshold` | `100` | `--nbd-param=cache-fill-threshold` |
 | `block_cache_flush_threads` | `30` | `--cacheFlushThreads` |
+| `block_read_threads` | `32` | `--blockReadThreads` |
 | `block_cache_size` | `300` | `--blockCacheSize` |
 | `block_cache_threads` | `30` | `--blockCacheThreads` |
 
