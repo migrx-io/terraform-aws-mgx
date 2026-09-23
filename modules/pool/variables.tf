@@ -146,6 +146,96 @@ variable "cache_fill_threshold" {
   default     = 100
 }
 
+variable "cache_write_throttle_ms" {
+  description = "nbd cache filter: write throttle delay in milliseconds (--nbd-param=cache-write-throttle-ms)."
+  type        = number
+  default     = 50
+}
+
+variable "cache_high_threshold" {
+  description = "nbd cache filter: cache fill percentage high watermark (reclaim starts) (--nbd-param=cache-high-threshold)."
+  type        = number
+  default     = 95
+}
+
+variable "cache_low_threshold" {
+  description = "nbd cache filter: cache fill percentage low watermark (reclaim target) (--nbd-param=cache-low-threshold)."
+  type        = number
+  default     = 85
+}
+
+variable "cache_reclaim_scan_blocks" {
+  description = "nbd cache filter: blocks scanned per reclaim scan (--nbd-param=cache-reclaim-scan-blocks)."
+  type        = number
+  default     = 12800
+}
+
+variable "cache_reclaim_scan_tries" {
+  description = "nbd cache filter: reclaim scan tries (--nbd-param=cache-reclaim-scan-tries)."
+  type        = number
+  default     = 20
+}
+
+variable "cache_lru_percent" {
+  description = "nbd cache filter: LRU percentage (--nbd-param=cache-lru-percent)."
+  type        = number
+  default     = 50
+}
+
+variable "cache_reclaim_high_count" {
+  description = "nbd cache filter: reclaim high count (--nbd-param=cache-reclaim-high-count)."
+  type        = number
+  default     = 2
+}
+
+variable "cache_reclaim_max_count" {
+  description = "nbd cache filter: reclaim max count (--nbd-param=cache-reclaim-max-count)."
+  type        = number
+  default     = 64
+}
+
+variable "cache_max_overflow_percent" {
+  description = "nbd cache filter: maximum cache overflow percentage (--nbd-param=cache-max-overflow-percent)."
+  type        = number
+  default     = 5
+}
+
+variable "cache_readahead_trigger" {
+  description = "nbd cache filter: readahead trigger (--nbd-param=cache-readahead-trigger)."
+  type        = number
+  default     = 3
+}
+
+variable "cache_readahead_blocks" {
+  description = "nbd cache filter: readahead blocks (--nbd-param=cache-readahead-blocks)."
+  type        = number
+  default     = 32
+}
+
+variable "cache_readahead_batch" {
+  description = "nbd cache filter: readahead batch (--nbd-param=cache-readahead-batch)."
+  type        = number
+  default     = 4
+}
+
+variable "cache_readahead_threads" {
+  description = "nbd cache filter: readahead threads (--nbd-param=cache-readahead-threads)."
+  type        = number
+  default     = 8
+}
+
+variable "cache_sync_interval" {
+  description = "nbd cache filter: cache sync interval in milliseconds (--nbd-param=cache-sync-interval)."
+  type        = number
+  default     = 300
+}
+
+variable "cache_persist_interval" {
+  description = "nbd cache filter: cache persist interval in milliseconds (--nbd-param=cache-persist-interval)."
+  type        = number
+  default     = 1000
+}
+
 variable "block_cache_flush_threads" {
   description = "Block cache: flush thread pool size (--cacheFlushThreads)."
   type        = number
@@ -168,6 +258,82 @@ variable "block_cache_threads" {
   description = "Block cache: write-back thread pool size (--blockCacheThreads)."
   type        = number
   default     = 30
+}
+
+# --- storage / snapshot plugin tuning ------------------------------------------
+# Rendered into the pool's storage / snapshot plugin configs (storage.yaml),
+# applied when the pool cluster is formed.
+
+variable "storage_s3purge" {
+  description = "Storage plugin: on volume delete, also delete the volume objects from the S3 data bucket, \"yes\" or \"no\" (storage_s3purge)."
+  type        = string
+  default     = "yes"
+}
+
+variable "cache_r_cache_size" {
+  description = "Storage plugin: read cache size (cache_r_cache_size)."
+  type        = number
+  default     = 4096
+}
+
+variable "cache_rw_cache_size" {
+  description = "Storage plugin: read-write cache size (cache_rw_cache_size)."
+  type        = number
+  default     = 1024
+}
+
+variable "qos_rw_ios_per_sec" {
+  description = "Storage plugin: default volume QoS, read+write IOPS limit."
+  type        = number
+  default     = 16000
+}
+
+variable "qos_rw_mbytes_per_sec" {
+  description = "Storage plugin: default volume QoS, read+write MB/s limit."
+  type        = number
+  default     = 250
+}
+
+variable "qos_r_mbytes_per_sec" {
+  description = "Storage plugin: default volume QoS, read MB/s limit."
+  type        = number
+  default     = 250
+}
+
+variable "qos_w_mbytes_per_sec" {
+  description = "Storage plugin: default volume QoS, write MB/s limit."
+  type        = number
+  default     = 250
+}
+
+variable "snapshot_storage_class" {
+  description = "Snapshot plugin: S3 storage class for snapshot objects (storage_class)."
+  type        = string
+  default     = "GLACIER_IR"
+}
+
+variable "snapshot_transfers" {
+  description = "Snapshot plugin: parallel object transfers per snapshot (transfers)."
+  type        = number
+  default     = 100
+}
+
+variable "snapshot_checkers" {
+  description = "Snapshot plugin: parallel object checkers per snapshot (checkers)."
+  type        = number
+  default     = 64
+}
+
+variable "snapshot_max_running" {
+  description = "Snapshot plugin: maximum snapshots running at once (max_running)."
+  type        = number
+  default     = 5
+}
+
+variable "snapshot_max_increments" {
+  description = "Snapshot plugin: maximum snapshot increments (max_increments)."
+  type        = number
+  default     = 10
 }
 
 # --- S3 -----------------------------------------------------------------------

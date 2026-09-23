@@ -33,15 +33,44 @@ locals {
     ebs_volumes            = var.ebs_volumes
 
     # mgx-spdk tunables (setup-helper.py renders these into /etc/mgx-spdk).
-    cache_flush_threads       = var.cache_flush_threads
-    cache_flush_interval      = var.cache_flush_interval
-    cache_flush_blocks        = var.cache_flush_blocks
-    cache_flush_max_age       = var.cache_flush_max_age
-    cache_fill_threshold      = var.cache_fill_threshold
-    block_cache_flush_threads = var.block_cache_flush_threads
-    block_read_threads        = var.block_read_threads
-    block_cache_size          = var.block_cache_size
-    block_cache_threads       = var.block_cache_threads
+    cache_flush_threads        = var.cache_flush_threads
+    cache_flush_interval       = var.cache_flush_interval
+    cache_flush_blocks         = var.cache_flush_blocks
+    cache_flush_max_age        = var.cache_flush_max_age
+    cache_fill_threshold       = var.cache_fill_threshold
+    cache_write_throttle_ms    = var.cache_write_throttle_ms
+    cache_high_threshold       = var.cache_high_threshold
+    cache_low_threshold        = var.cache_low_threshold
+    cache_reclaim_scan_blocks  = var.cache_reclaim_scan_blocks
+    cache_reclaim_scan_tries   = var.cache_reclaim_scan_tries
+    cache_lru_percent          = var.cache_lru_percent
+    cache_reclaim_high_count   = var.cache_reclaim_high_count
+    cache_reclaim_max_count    = var.cache_reclaim_max_count
+    cache_max_overflow_percent = var.cache_max_overflow_percent
+    cache_readahead_trigger    = var.cache_readahead_trigger
+    cache_readahead_blocks     = var.cache_readahead_blocks
+    cache_readahead_batch      = var.cache_readahead_batch
+    cache_readahead_threads    = var.cache_readahead_threads
+    cache_sync_interval        = var.cache_sync_interval
+    cache_persist_interval     = var.cache_persist_interval
+    block_cache_flush_threads  = var.block_cache_flush_threads
+    block_read_threads         = var.block_read_threads
+    block_cache_size           = var.block_cache_size
+    block_cache_threads        = var.block_cache_threads
+
+    # storage / snapshot plugin tunables (setup-helper.py renders storage.yaml).
+    storage_s3purge         = var.storage_s3purge
+    cache_r_cache_size      = var.cache_r_cache_size
+    cache_rw_cache_size     = var.cache_rw_cache_size
+    qos_rw_ios_per_sec      = var.qos_rw_ios_per_sec
+    qos_rw_mbytes_per_sec   = var.qos_rw_mbytes_per_sec
+    qos_r_mbytes_per_sec    = var.qos_r_mbytes_per_sec
+    qos_w_mbytes_per_sec    = var.qos_w_mbytes_per_sec
+    snapshot_storage_class  = var.snapshot_storage_class
+    snapshot_transfers      = var.snapshot_transfers
+    snapshot_checkers       = var.snapshot_checkers
+    snapshot_max_running    = var.snapshot_max_running
+    snapshot_max_increments = var.snapshot_max_increments
   }
 
   pool_info_json = jsonencode({
