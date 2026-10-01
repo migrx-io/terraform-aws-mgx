@@ -83,56 +83,13 @@ descriptions).
 | `ebs_volumes` | `list(object)` | Per-node EBS cache volumes (raid_level 0). |
 | `nvme_node_disks_count` / `max_volumes_count` | `number` | Cache/volume sizing. |
 | `r_cache_size_in_mib` / `rw_cache_size_in_mib` | `number` | Per-disk cache sizes. |
-| `cache_*` (flush / fill / reclaim / readahead / ...) | `number` | nbd write-back cache filter tuning (see below). |
 | `storage_s3purge` / `cache_r_cache_size` / `cache_rw_cache_size` / `qos_*` / `snapshot_*` | | Storage / snapshot plugin config (see below). |
-| `block_cache_size` / `block_cache_threads` / `block_cache_flush_threads` / `block_read_threads` | `number` | Block cache tuning (see below). |
 | `s3_bucket_names` / `s3_backup_bucket_names` / `s3_bucket_access_names` | `list(string)` | Owned + shared buckets. |
 | `enable_metrics` / `enable_grafana` | `bool` | Observability. |
 | `provision_enabled` | `bool` | Toggle SSH provisioning (false = infra only). |
 | `node_scripts_dir` / `provision_dir` | `string` | Baked scripts dir / dynamic-files dir on the node. |
 | `secrets_file_path` | `string` | Local `secrets.env` (ssh mode). |
 | `ssh_user` / `ssh_private_key_path` | `string` | SSH access via the bastion. |
-
-## Write-back cache tuning
-
-These knobs are rendered into `/etc/mgx-spdk` on every node of the pool, so they
-apply to every volume the pool serves — the same way `region` and the pool name
-are. Defaults match what the node image ships with, so leaving them unset
-changes nothing.
-
-| Name | Default | Flag |
-|------|---------|------------------------|
-| `cache_flush_threads` | `10` | `--nbd-param=cache-flush-threads` |
-| `cache_flush_interval` | `300` | `--nbd-param=cache-flush-interval` |
-| `cache_flush_blocks` | `5` | `--nbd-param=cache-flush-blocks` |
-| `cache_flush_max_age` | `3000` | `--nbd-param=cache-flush-max-age` |
-| `cache_fill_threshold` | `100` | `--nbd-param=cache-fill-threshold` |
-| `cache_write_throttle_ms` | `50` | `--nbd-param=cache-write-throttle-ms` |
-| `cache_high_threshold` | `95` | `--nbd-param=cache-high-threshold` |
-| `cache_low_threshold` | `85` | `--nbd-param=cache-low-threshold` |
-| `cache_reclaim_scan_blocks` | `12800` | `--nbd-param=cache-reclaim-scan-blocks` |
-| `cache_reclaim_scan_tries` | `20` | `--nbd-param=cache-reclaim-scan-tries` |
-| `cache_lru_percent` | `50` | `--nbd-param=cache-lru-percent` |
-| `cache_reclaim_high_count` | `2` | `--nbd-param=cache-reclaim-high-count` |
-| `cache_reclaim_max_count` | `64` | `--nbd-param=cache-reclaim-max-count` |
-| `cache_max_overflow_percent` | `5` | `--nbd-param=cache-max-overflow-percent` |
-| `cache_readahead_trigger` | `3` | `--nbd-param=cache-readahead-trigger` |
-| `cache_readahead_blocks` | `32` | `--nbd-param=cache-readahead-blocks` |
-| `cache_readahead_batch` | `4` | `--nbd-param=cache-readahead-batch` |
-| `cache_readahead_threads` | `8` | `--nbd-param=cache-readahead-threads` |
-| `cache_sync_interval` | `300` | `--nbd-param=cache-sync-interval` |
-| `cache_persist_interval` | `1000` | `--nbd-param=cache-persist-interval` |
-| `block_cache_flush_threads` | `30` | `--cacheFlushThreads` |
-| `block_read_threads` | `32` | `--blockReadThreads` |
-| `block_cache_size` | `300` | `--blockCacheSize` |
-| `block_cache_threads` | `30` | `--blockCacheThreads` |
-
-`block_cache_size` is a block count, but `--blockSize` is fixed at `1M`, so it
-reads directly as MiB.
-
-Changing any of them re-provisions the nodes (the value is part of the
-`pool_info.json` hash). Running volumes keep their current settings until their
-next start.
 
 ## Storage / snapshot plugin tuning
 
