@@ -46,8 +46,8 @@ module "pool" {
   rw_cache_size_in_mib  = 10000
   ebs_volumes = [{ size = 100, type = "gp3", iops = 3000, throughput = 125, count = 10 }]
 
-  s3_bucket_names        = ["mgxs3storage1"]
-  s3_backup_bucket_names = ["mgxs3backup1"]
+  s3_bucket_names        = ["mgx-storage-pool-1"]
+  s3_backup_bucket_names = ["mgx-backup-pool-1"]
   s3_force_destroy       = true
   enable_metrics         = true
 
