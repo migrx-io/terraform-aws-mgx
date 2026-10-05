@@ -172,13 +172,13 @@ variable "snapshot_transfers" {
 variable "snapshot_checkers" {
   description = "Snapshot plugin: parallel object checkers per snapshot (checkers)."
   type        = number
-  default     = 64
+  default     = 16
 }
 
 variable "snapshot_max_running" {
   description = "Snapshot plugin: maximum snapshots running at once (max_running)."
   type        = number
-  default     = 5
+  default     = 2
 }
 
 variable "snapshot_max_increments" {

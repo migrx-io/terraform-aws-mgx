@@ -62,8 +62,8 @@ module "pool" {
   # qos_w_mbytes_per_sec       = 250
   # snapshot_storage_class     = "GLACIER_IR"
   # snapshot_transfers         = 100
-  # snapshot_checkers          = 64
-  # snapshot_max_running       = 5
+  # snapshot_checkers          = 16
+  # snapshot_max_running       = 2
   # snapshot_max_increments    = 10
 
   s3_bucket_names        = ["mgx-storage-pool-1"]

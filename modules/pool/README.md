@@ -108,8 +108,8 @@ match what the node image ships with.
 | `qos_w_mbytes_per_sec` | `250` | storage `qos_w_mbytes_per_sec` |
 | `snapshot_storage_class` | `"GLACIER_IR"` | snapshot `storage_class` |
 | `snapshot_transfers` | `100` | snapshot `transfers` |
-| `snapshot_checkers` | `64` | snapshot `checkers` |
-| `snapshot_max_running` | `5` | snapshot `max_running` |
+| `snapshot_checkers` | `16` | snapshot `checkers` |
+| `snapshot_max_running` | `2` | snapshot `max_running` |
 | `snapshot_max_increments` | `10` | snapshot `max_increments` |
 
 ## Outputs
