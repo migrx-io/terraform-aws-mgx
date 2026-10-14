@@ -23,6 +23,7 @@ locals {
     r_cache_size_in_mib    = var.r_cache_size_in_mib
     rw_cache_size_in_mib   = var.rw_cache_size_in_mib
     raid_level             = var.raid_level
+    cache_filesystem       = var.cache_filesystem
     s3_bucket_names        = var.s3_bucket_names
     s3_backup_bucket_names = var.s3_backup_bucket_names
     s3_bucket_access_names = var.s3_bucket_access_names

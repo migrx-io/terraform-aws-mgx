@@ -99,6 +99,17 @@ variable "raid_level" {
   }
 }
 
+variable "cache_filesystem" {
+  description = "Filesystem for cache disks: \"xfs\" or \"ext4\"."
+  type        = string
+  default     = "xfs"
+
+  validation {
+    condition     = contains(["xfs", "ext4"], var.cache_filesystem)
+    error_message = "cache_filesystem must be \"xfs\" or \"ext4\"."
+  }
+}
+
 variable "ebs_volumes" {
   description = "EBS volumes attached per node and striped into one RAID0 cache. Only used when raid_level = 0."
   type = list(object({
