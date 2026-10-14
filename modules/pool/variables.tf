@@ -187,6 +187,12 @@ variable "snapshot_max_increments" {
   default     = 10
 }
 
+variable "scheduler_node_down_wait" {
+  description = "Scheduler plugin: seconds a node must stay DOWN before it is auto-drained and its volumes fail over (node_down_wait)."
+  type        = number
+  default     = 300
+}
+
 # --- S3 -----------------------------------------------------------------------
 
 variable "s3_bucket_names" {

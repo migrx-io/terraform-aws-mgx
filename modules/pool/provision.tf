@@ -32,19 +32,21 @@ locals {
     cross_peer_scrape      = var.cross_peer_scrape
     ebs_volumes            = var.ebs_volumes
 
-    # storage / snapshot plugin tunables (setup-helper.py renders storage.yaml).
-    storage_s3purge         = var.storage_s3purge
-    cache_r_cache_size      = var.cache_r_cache_size
-    cache_rw_cache_size     = var.cache_rw_cache_size
-    qos_rw_ios_per_sec      = var.qos_rw_ios_per_sec
-    qos_rw_mbytes_per_sec   = var.qos_rw_mbytes_per_sec
-    qos_r_mbytes_per_sec    = var.qos_r_mbytes_per_sec
-    qos_w_mbytes_per_sec    = var.qos_w_mbytes_per_sec
-    snapshot_storage_class  = var.snapshot_storage_class
-    snapshot_transfers      = var.snapshot_transfers
-    snapshot_checkers       = var.snapshot_checkers
-    snapshot_max_running    = var.snapshot_max_running
-    snapshot_max_increments = var.snapshot_max_increments
+    # storage / scheduler / snapshot plugin tunables (setup-helper.py renders
+    # storage.yaml).
+    storage_s3purge          = var.storage_s3purge
+    cache_r_cache_size       = var.cache_r_cache_size
+    cache_rw_cache_size      = var.cache_rw_cache_size
+    qos_rw_ios_per_sec       = var.qos_rw_ios_per_sec
+    qos_rw_mbytes_per_sec    = var.qos_rw_mbytes_per_sec
+    qos_r_mbytes_per_sec     = var.qos_r_mbytes_per_sec
+    qos_w_mbytes_per_sec     = var.qos_w_mbytes_per_sec
+    snapshot_storage_class   = var.snapshot_storage_class
+    snapshot_transfers       = var.snapshot_transfers
+    snapshot_checkers        = var.snapshot_checkers
+    snapshot_max_running     = var.snapshot_max_running
+    snapshot_max_increments  = var.snapshot_max_increments
+    scheduler_node_down_wait = var.scheduler_node_down_wait
   }
 
   pool_info_json = jsonencode({

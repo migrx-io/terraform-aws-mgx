@@ -52,7 +52,8 @@ module "pool" {
     count      = 10
   }]
 
-  # Storage / snapshot plugin config (storage.yaml); defaults match the node image.
+  # Storage / scheduler / snapshot plugin config (storage.yaml); defaults match
+  # the node image.
   # storage_s3purge            = "yes"
   # cache_r_cache_size         = 4096
   # cache_rw_cache_size        = 1024
@@ -65,6 +66,7 @@ module "pool" {
   # snapshot_checkers          = 16
   # snapshot_max_running       = 2
   # snapshot_max_increments    = 10
+  # scheduler_node_down_wait   = 300
 
   s3_bucket_names        = ["mgx-storage-pool-1"]
   s3_backup_bucket_names = ["mgx-backup-pool-1"]

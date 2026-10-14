@@ -91,9 +91,9 @@ descriptions).
 | `secrets_file_path` | `string` | Local `secrets.env` (ssh mode). |
 | `ssh_user` / `ssh_private_key_path` | `string` | SSH access via the bastion. |
 
-## Storage / snapshot plugin tuning
+## Storage / scheduler / snapshot plugin tuning
 
-These are rendered into the pool's storage and snapshot plugin configs
+These are rendered into the pool's storage, scheduler and snapshot plugin configs
 (`storage.yaml`), which are applied when the pool cluster is formed. Defaults
 match what the node image ships with.
 
@@ -111,6 +111,7 @@ match what the node image ships with.
 | `snapshot_checkers` | `16` | snapshot `checkers` |
 | `snapshot_max_running` | `2` | snapshot `max_running` |
 | `snapshot_max_increments` | `10` | snapshot `max_increments` |
+| `scheduler_node_down_wait` | `300` | scheduler `node_down_wait` |
 
 ## Outputs
 
