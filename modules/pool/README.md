@@ -80,7 +80,7 @@ descriptions).
 | `network` | `object` | Outputs from the network module. |
 | `nodes_ami` / `nodes_instance_type` / `nodes_count` | | Node fleet. |
 | `raid_level` | `number` | `0` = EBS RAID0 cache (single AZ); `1`/`10` = local NVMe. |
-| `cache_filesystem` | `string` | Cache disk filesystem: `"xfs"` (default) or `"ext4"`. |
+| `cache_filesystem` | `string` | Cache disk filesystem: `"ext4"` (default) or `"xfs"`. |
 | `ebs_volumes` | `list(object)` | Per-node EBS cache volumes (raid_level 0). |
 | `nvme_node_disks_count` / `max_volumes_count` | `number` | Cache/volume sizing. |
 | `r_cache_size_in_mib` / `rw_cache_size_in_mib` | `number` | Per-disk cache sizes. |

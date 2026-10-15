@@ -102,7 +102,7 @@ variable "raid_level" {
 variable "cache_filesystem" {
   description = "Filesystem for cache disks: \"xfs\" or \"ext4\"."
   type        = string
-  default     = "xfs"
+  default     = "ext4"
 
   validation {
     condition     = contains(["xfs", "ext4"], var.cache_filesystem)

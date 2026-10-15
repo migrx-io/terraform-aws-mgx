@@ -40,8 +40,8 @@ module "pool" {
   # EBS RAID0 cache: pin the pool to a single AZ (EBS volumes are AZ-bound).
   az                    = "us-east-1a"
   raid_level            = 0
-  nvme_node_disks_count = 10    # = total ebs_volumes count when raid_level = 0
-  cache_filesystem      = "xfs" # or "ext4"
+  nvme_node_disks_count = 10     # = total ebs_volumes count when raid_level = 0
+  cache_filesystem      = "ext4" # or "xfs"
   max_volumes_count     = 10
   r_cache_size_in_mib   = 90000
   rw_cache_size_in_mib  = 10000
