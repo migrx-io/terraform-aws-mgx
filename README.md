@@ -69,7 +69,6 @@ Keys (delivered to each node, merged over the baked `mgx-env`, secrets win):
 | `CASS_USER` / `CASS_PASSWD` | Cassandra username / password. |
 | `MGX_GW_X_API_KEY` / `MGX_X_API_KEY` | mgx gateway / node X-API keys. |
 | `MGX_GW_ADMIN_PASSWD` | mgx gateway admin password. |
-| `GRAFANA_USER` / `GRAFANA_PASSWD` | Grafana admin user / password (used when metrics are enabled). |
 
 ### 1. Foundation
 
@@ -117,10 +116,10 @@ Key inputs per module (full reference in each module's README):
 `nodes_count`, `raid_level`, `ebs_volumes`, `nvme_node_disks_count`,
 `r_cache_size_in_mib`, `rw_cache_size_in_mib`, `max_volumes_count`,
 `s3_bucket_names`, `s3_backup_bucket_names`, `s3_bucket_access_names`,
-`enable_metrics`, `enable_grafana`.
+`enable_metrics`.
 
 **mgmt** — `region`, `network`, `nodes_ami`, `nodes_instance_type`,
-`nodes_count`, `enable_metrics`, `enable_grafana`.
+`nodes_count`, `enable_metrics`.
 
 ### Cache sizing
 
@@ -196,8 +195,3 @@ ssh -A ubuntu@<bastion_public_ip>
 ssh -A ubuntu@<node_private_ip>      # from the bastion
 ```
 
-Forward Grafana (when enabled) through the bastion:
-
-```bash
-ssh -L 127.0.0.1:3000:<node_private_ip>:3000 ubuntu@<bastion_public_ip> -N
-```

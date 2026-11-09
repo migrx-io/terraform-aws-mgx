@@ -75,7 +75,6 @@ module "pool" {
   s3_force_destroy       = true
 
   enable_metrics = true
-  enable_grafana = false
   # true (default) = nodes scrape each other (full per-pool replica, for a
   # standalone pool). false = each node scrapes only itself and mgmt federates
   # every node (no node-selection SPOF). Set false when attaching to mgmt.

@@ -33,7 +33,6 @@ module "mgmt" {
   nodes_instance_type = "t4g.xlarge"
   nodes_count         = 3
   enable_metrics      = true
-  enable_grafana      = true
 
   # provisioning (ssh / bastion mode). nodes_ami must be a prebaked node AMI
   # (https://backedblock.io/docs/node-amis): provisioning runs the baked setup-node.sh in place.

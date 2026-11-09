@@ -76,7 +76,7 @@ descriptions).
 | `region` | `string` | Region (pool_info.json). |
 | `network` | `object` | Outputs from the network module. |
 | `nodes_ami` / `nodes_instance_type` / `nodes_count` | | mgmt node fleet. |
-| `enable_metrics` / `enable_grafana` | `bool` | Observability / federation. |
+| `enable_metrics` | `bool` | Observability / federation. |
 | `pull_http_timeout` / `push_http_timeout` | `number` | mgmt manifest tuning. |
 | `provision_enabled` | `bool` | Toggle SSH provisioning. |
 | `node_scripts_dir` / `provision_dir` | `string` | Baked scripts dir / dynamic-files dir on the node. |

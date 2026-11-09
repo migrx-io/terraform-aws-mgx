@@ -86,7 +86,7 @@ descriptions).
 | `r_cache_size_in_mib` / `rw_cache_size_in_mib` | `number` | Per-disk cache sizes. |
 | `storage_s3purge` / `cache_r_cache_size` / `cache_rw_cache_size` / `qos_*` / `snapshot_*` | | Storage / snapshot plugin config (see below). |
 | `s3_bucket_names` / `s3_backup_bucket_names` / `s3_bucket_access_names` | `list(string)` | Owned + shared buckets. |
-| `enable_metrics` / `enable_grafana` | `bool` | Observability. |
+| `enable_metrics` | `bool` | Observability. |
 | `provision_enabled` | `bool` | Toggle SSH provisioning (false = infra only). |
 | `node_scripts_dir` / `provision_dir` | `string` | Baked scripts dir / dynamic-files dir on the node. |
 | `secrets_file_path` | `string` | Local `secrets.env` (ssh mode). |
