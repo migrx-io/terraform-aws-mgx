@@ -50,6 +50,7 @@ A runnable root is in [`examples/network`](../../examples/network).
 | `mgmt_subnet_cidrs` | `list(string)` | — | One CIDR per AZ for the management subnets. |
 | `storage_subnet_cidrs` | `list(string)` | — | One CIDR per AZ for the storage subnets. |
 | `bastion` | `object` | disabled | Bastion config; see variable for fields. |
+| `extra_ingress_cidrs` | `list(string)` | `[]` | CIDRs outside the VPC allowed to reach the nodes. The VPC's CIDRs are always allowed. |
 | `ssh_public_key_path` | `string` | `"~/.ssh/id_rsa.pub"` | Public key registered as the EC2 key pair. |
 | `key_name` | `string` | `"mgx-deployer-key"` | EC2 key pair name (unique per deployment). |
 | `tags` | `map(string)` | `{}` | Extra tags merged onto every resource. |

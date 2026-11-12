@@ -58,6 +58,12 @@ variable "nat_public_subnet_id" {
   default     = ""
 }
 
+variable "extra_ingress_cidrs" {
+  description = "CIDRs outside the VPC (e.g. peered networks) allowed to reach the nodes. The VPC's own CIDRs are always allowed."
+  type        = list(string)
+  default     = []
+}
+
 variable "ssh_public_key_path" {
   description = "Path to the SSH public key registered as the EC2 key pair for foundation/instances."
   type        = string

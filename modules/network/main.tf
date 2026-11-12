@@ -125,8 +125,13 @@ resource "aws_vpc_endpoint" "s3" {
 
 # --- Security groups ----------------------------------------------------------
 
-# Shared by mgmt + storage ENIs. Intra-VPC traffic is open; egress is open so
-# nodes can reach the NAT gateway. Exported as internal_sg_id for other modules.
+data "aws_vpc" "this" {
+  id = var.vpc_id
+}
+
+# Shared by mgmt + storage ENIs. Inbound is open to the VPC's CIDRs plus
+# extra_ingress_cidrs; egress is open so nodes can reach the NAT gateway.
+# Exported as internal_sg_id for other modules.
 resource "aws_security_group" "internal" {
   name        = "${var.name_prefix}-internal"
   description = "Allow all traffic within the VPC for backedblock.io nodes"
@@ -137,7 +142,7 @@ resource "aws_security_group" "internal" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = distinct(concat([for a in data.aws_vpc.this.cidr_block_associations : a.cidr_block], var.extra_ingress_cidrs))
   }
 
   egress {
