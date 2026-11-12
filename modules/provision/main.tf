@@ -17,6 +17,9 @@ locals {
 
   bastion_user = var.bastion_user != "" ? var.bastion_user : var.ssh_user
 
+  python = "/opt/mgx-pyenv3/bin/python"
+  helper = "${var.node_scripts_dir}/setup-helper.py"
+
   # Use `sudo env VAR=...` rather than `sudo VAR=...`: sudo's default env policy
   # strips unknown variables set the latter way, but an explicit `env` assignment
   # always applies.
@@ -38,14 +41,9 @@ locals {
       "mkdir -p '${var.provision_dir}'",
     ],
     var.secrets_ssm_path != "" ? [
-      # The prebaked AMI is Ubuntu and ships no AWS CLI, but ssm mode needs it to
-      # pull the SecureString secret (Run Command can't resolve {{ssm-secure}}).
-      # Install once via snap if missing; the binary lands in /snap/bin.
-      "export PATH=\"$PATH:/snap/bin\"",
-      "command -v aws >/dev/null 2>&1 || snap install aws-cli --classic",
-      # Pipe through `cat`: the snap CLI build throws "'NoneType' object has no
-      # attribute 'flush'" when its stdout is a plain file, but is fine on a pipe.
-      "aws ssm get-parameter --with-decryption --name '${var.secrets_ssm_path}' --query Parameter.Value --output text | cat > ${var.provision_dir}/secrets.env",
+      # Pull the SecureString secret with the instance role (Run Command can't
+      # resolve {{ssm-secure}}) via setup-helper.py and boto3.
+      "MGX_PROVISION_DIR='${var.provision_dir}' ${local.python} '${local.helper}' fetch-secrets '${var.secrets_ssm_path}'",
     ] : [],
     local.write_files_cmds,
     [
