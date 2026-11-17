@@ -195,3 +195,7 @@ ssh -A ubuntu@<bastion_public_ip>
 ssh -A ubuntu@<node_private_ip>      # from the bastion
 ```
 
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE).
